@@ -1,0 +1,12 @@
+{application, resource_discovery,
+ [
+  {description, ""},
+  {vsn, "1"},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib
+                 ]},
+  {mod, { resource_discovery_app, []}},
+  {env, []}
+ ]}.
