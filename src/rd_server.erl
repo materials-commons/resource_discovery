@@ -16,6 +16,8 @@
 
 -define(SERVER, ?MODULE).
 
+-record(resource, {host, type, resource}).
+
 -record(state, {local_resources, known_resources}).
 
 %% ===================================================================
@@ -40,7 +42,9 @@ init([]) ->
 handle_call(Message, _From, State) ->
     {reply, {ok, Message}, State}.
 
-handle_cast({stomp, _Message}, State) ->
+handle_cast([{message, _Message}, {queue, "/topic/rd_node_announce"}], State) ->
+    {noreply, State};
+handle_cast([{message, _Message}, {queue, "/topic/rd_node_down"}], State) ->
     {noreply, State};
 handle_cast(stop, State) ->
     {stop, normal, State}.
