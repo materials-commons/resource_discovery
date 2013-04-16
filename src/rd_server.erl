@@ -8,7 +8,7 @@
 -behaviour(gen_stomp).
 
 %% API
--export([start_link/4]).
+-export([start_link/4, add_local_resource/2, fetch_resources/1]).
 
 %% gen_stomp callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
@@ -21,7 +21,7 @@
 %% ===================================================================
 %% API
 %% ===================================================================
-start_link(Queue, Server, Username, Password) ->
+start_link(Server, Port, Username, Password) ->
     gen_stomp:start_link({local, ?SERVER}, Server, Port, Username, Password,
         [{"/topic/rd_node_announce", []}, {"/topic/rd_node_down", []}], []).
 
@@ -40,7 +40,7 @@ init([]) ->
 handle_call(Message, _From, State) ->
     {reply, {ok, Message}, State}.
 
-handle_cast({stomp, Message}, State) ->
+handle_cast({stomp, _Message}, State) ->
     {noreply, State};
 handle_cast(stop, State) ->
     {stop, normal, State}.
