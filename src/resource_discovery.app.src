@@ -12,7 +12,9 @@
   {registered, []},
   {applications, [
                   kernel,
-                  stdlib
+                  stdlib,
+                  handyman,
+                  stomp_client
                  ]},
   {mod, { resource_discovery_app, []}},
   {env, []}

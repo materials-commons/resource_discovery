@@ -28,7 +28,6 @@
     {
         host :: string(),
         init :: boolean(),
-        resources = [] :: [resource()],
         lease_time :: seconds(),
         start_time :: seconds()
     }).
@@ -74,33 +73,34 @@ add_resource(Pid, #resource{} = Resource) ->
 %% ===================================================================
 
 %% @doc No resources specified, need to query host for them.
-init([[], LeaseTime]) ->
-    Now = seconds_now(),
-    {ok, #state{lease_time = LeaseTime, start_time = Now, init = true}, 0};
-%% @doc Resource list given, no need to go get them
 init([Resources, LeaseTime]) ->
     Now = seconds_now(),
-    {ok, #state{lease_time = LeaseTime, start_time = Now, init = false, resources = Resources}}.
+    State = #state{ lease_time = LeaseTime, start_time = Now,
+                    init = Resources =:= []},
+    case State#state.init of
+        true ->
+            {ok, State, 0};
+        _ ->
+            {ok, State}
+    end.
 
 %% @doc Retrieve all resources
 handle_call(fetch, _From,
-        #state{lease_time = LeaseTime, start_time = StartTime,
-                resources = Resources} = State) ->
+        #state{lease_time = LeaseTime, start_time = StartTime} = State) ->
     TimeLeft = time_left(StartTime, LeaseTime),
-    {reply, {ok, Resources}, State, TimeLeft}.
+    {reply, {ok, []}, State, TimeLeft}.
 
 %% @doc
 handle_cast(update,
-        #state{lease_time = LeaseTime, start_time = StartTime,
-                resources = _Resources} = State) ->
+        #state{lease_time = LeaseTime, start_time = StartTime} = State) ->
     TimeLeft = time_left(StartTime, LeaseTime),
     {noreply, State, TimeLeft};
 handle_cast([{message, _Message}, {queue, _Queue}],
         #state{start_time = StartTime, lease_time = LeaseTime} = State) ->
     TimeLeft = time_left(StartTime, LeaseTime),
     {noreply, State, TimeLeft};
-handle_cast({add_resource, Resource}, 
-        #state{start_time = StartTime, lease_time = LeaseTime, resources = Resources} = State) ->
+handle_cast({add_resource, Resource},
+        #state{start_time = StartTime, lease_time = LeaseTime} = State) ->
     TimeLeft = time_left(StartTime, LeaseTime),
     {noreply, State, 0};
 handle_cast(delete, State) ->
