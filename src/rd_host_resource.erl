@@ -27,7 +27,6 @@
 -record(state,
     {
         host :: string(),
-        init :: boolean(),
         lease_time :: seconds(),
         start_time :: seconds()
     }).
@@ -75,14 +74,10 @@ add_resource(Pid, #resource{} = Resource) ->
 %% @doc No resources specified, need to query host for them.
 init([Resources, LeaseTime]) ->
     Now = seconds_now(),
-    State = #state{ lease_time = LeaseTime, start_time = Now,
-                    init = Resources =:= []},
-    case State#state.init of
-        true ->
-            {ok, State, 0};
-        _ ->
-            {ok, State}
-    end.
+    gen_server:cast(self(), {startup, Resources}),
+    State = #state{ lease_time = LeaseTime, start_time = Now},
+    {ok, State, time_left(Now, LeaseTime)}.
+
 
 %% @doc Retrieve all resources
 handle_call(fetch, _From,
@@ -102,19 +97,21 @@ handle_cast([{message, _Message}, {queue, _Queue}],
 handle_cast({add_resource, Resource},
         #state{start_time = StartTime, lease_time = LeaseTime} = State) ->
     TimeLeft = time_left(StartTime, LeaseTime),
+    {noreply, State, TimeLeft};
+%% @doc complete startup when no resources were given
+handle_cast({startup, []}, State) ->
+    {noreply, State, 0};
+handle_cast({startup, Resources},
+        #state{start_time = StartTime, lease_time = LeaseTime} = State) ->
+    %lists:foreach()
     {noreply, State, 0};
 handle_cast(delete, State) ->
     {stop, normal, State}.
 
-%% @doc populate resources for host
-handle_info(timeout, #state{init = true, start_time = StartTime, lease_time = LeaseTime} = State) ->
-    % Populate local resources
-    % trade resources with host
-    TimeLeft = time_left(StartTime, LeaseTime),
-    {noreply, State#state{init = false}, TimeLeft};
-handle_info(timeout, #state{init = false} = State) ->
-    % timeout
-    {stop, normal, State}.
+handle_info(timeout, #state{lease_time = LeaseTime} = State) ->
+    % On timeout we go and query for the resources.
+    Now = seconds_now(),
+    {noreply, State, time_left(Now, LeaseTime)}.
 
 terminate(_Reason, _State) ->
     % Remove key from ETS
