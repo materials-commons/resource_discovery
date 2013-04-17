@@ -1,0 +1,3 @@
+#!/bin/sh
+erl -pa ebin -pa deps/stomp_client/ebin -pa deps/ossp_uuid/ebin -pa deps/handyman/ebin
+
