@@ -74,6 +74,7 @@ add_resource(Pid, #resource{} = Resource) ->
 %% @doc No resources specified, need to query host for them.
 init([Resources, LeaseTime]) ->
     Now = seconds_now(),
+    %% Do initialization outside of init.
     gen_server:cast(self(), {startup, Resources}),
     State = #state{ lease_time = LeaseTime, start_time = Now},
     {ok, State, time_left(Now, LeaseTime)}.
