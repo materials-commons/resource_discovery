@@ -2,6 +2,13 @@
  [
   {description, ""},
   {vsn, "1"},
+  {modules, [
+                rd_host_resource,
+                rd_server,
+                rd_resource,
+                resource_discovery_app,
+                resource_discovery_sup
+            ]},
   {registered, []},
   {applications, [
                   kernel,
