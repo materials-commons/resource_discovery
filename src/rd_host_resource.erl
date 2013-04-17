@@ -14,7 +14,7 @@
 
 %% API
 -export([start_link/5, start_link/6, start/1, start/2, start/3, fetch/1,
-            update/1, delete/1]).
+            update/1, delete_resource/2, add_resource/2]).
 
 %% gen_stomp callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
@@ -60,11 +60,14 @@ start(Host, Resources, LeaseTime) ->
 fetch(Pid) ->
     gen_server:call(Pid, fetch).
 
-delete(Pid) ->
-    gen_server:cast(Pid, delete).
+delete_resource(Pid, #resource{} = Resource) ->
+    gen_server:cast(Pid, {delete_resource, Resource}).
 
 update(Pid) ->
     gen_server:cast(Pid, update).
+
+add_resource(Pid, #resource{} = Resource) ->
+    gen_server:cast(Pid, {add_resource, Resource}).
 
 %% ===================================================================
 %% gen_stomp callbacks
@@ -96,6 +99,10 @@ handle_cast([{message, _Message}, {queue, _Queue}],
         #state{start_time = StartTime, lease_time = LeaseTime} = State) ->
     TimeLeft = time_left(StartTime, LeaseTime),
     {noreply, State, TimeLeft};
+handle_cast({add_resource, Resource}, 
+        #state{start_time = StartTime, lease_time = LeaseTime, resources = Resources} = State) ->
+    TimeLeft = time_left(StartTime, LeaseTime),
+    {noreply, State, 0};
 handle_cast(delete, State) ->
     {stop, normal, State}.
 
@@ -140,5 +147,3 @@ lease_time_left_in_milliseconds(LeaseTime, TimeElapsed) ->
         Time when Time =< 0 -> 0;
         Time -> Time * 1000 % Convert to milliseconds
     end.
-
-

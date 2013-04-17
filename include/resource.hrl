@@ -1,3 +1,3 @@
 
--record(resource, {host, type, resource}).
+-record(resource, {host, type, name, attrs}).
 -type resource() :: #resource{}.
