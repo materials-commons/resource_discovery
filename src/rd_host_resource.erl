@@ -27,6 +27,8 @@
 -record(state,
     {
         host :: string(),
+        command_queue :: string(),
+        broadcast_queue :: string(),
         lease_time :: seconds(),
         start_time :: seconds()
     }).
@@ -37,14 +39,14 @@
 
 %% @doc start the server
 start_link(Host, Port, Username, Password, LeaseTime) ->
-    HostQueue = string:concat("/topic/rd_", Host),
-    gen_stomp:start_link(?MODULE, Host, Port, Username, Password, [{HostQueue, []}],
-        [[], LeaseTime]).
+    start_link(Host, Port, Username, Password, [], LeaseTime).
 
 start_link(Host, Port, Username, Password, Resources, LeaseTime) ->
-    HostQueue = string:concat("/topic/rd_", Host),
-    gen_stomp:start_link(?MODULE, Host, Port, Username, Password, [{HostQueue, []}],
-        [Resources, LeaseTime]).
+    HostBroadcastTopic = string:concat("/topic/rd_", Host),
+    HostCommandQueue = string:concat("/queue/rd_command_", Host),
+    gen_stomp:start_link(?MODULE, Host, Port, Username, Password,
+        [{HostBroadcastTopic, []}, {HostCommandQueue, []}],
+        [HostBroadcastTopic, HostCommandQueue, Resources, LeaseTime]).
 
 start(Host, LeaseTime) ->
     rd_sup:start_child(Host, [], LeaseTime).
@@ -72,11 +74,13 @@ add_resource(Pid, #resource{} = Resource) ->
 %% ===================================================================
 
 %% @doc No resources specified, need to query host for them.
-init([Resources, LeaseTime]) ->
+init([HostBroadcastTopic, HostCommandQueue, Resources, LeaseTime]) ->
     Now = seconds_now(),
     %% Do initialization outside of init.
     gen_server:cast(self(), {startup, Resources}),
-    State = #state{ lease_time = LeaseTime, start_time = Now},
+    State = #state{lease_time = LeaseTime, start_time = Now,
+                    command_queue = HostCommandQueue,
+                    broadcast_queue = HostBroadcastTopic},
     {ok, State, time_left(Now, LeaseTime)}.
 
 
@@ -91,21 +95,27 @@ handle_cast(update,
         #state{lease_time = LeaseTime, start_time = StartTime} = State) ->
     TimeLeft = time_left(StartTime, LeaseTime),
     {noreply, State, TimeLeft};
-handle_cast([{message, _Message}, {queue, _Queue}],
-        #state{start_time = StartTime, lease_time = LeaseTime} = State) ->
+handle_cast([{message, Message}, {queue, Queue}],
+        #state{start_time = StartTime, lease_time = LeaseTime,
+                broadcast_queue = BroadcastQueue} = State) ->
+    handle_message(Message, Queue, BroadcastQueue),
     TimeLeft = time_left(StartTime, LeaseTime),
     {noreply, State, TimeLeft};
 handle_cast({add_resource, Resource},
         #state{start_time = StartTime, lease_time = LeaseTime} = State) ->
+    rd_resource:insert(Resource),
     TimeLeft = time_left(StartTime, LeaseTime),
     {noreply, State, TimeLeft};
 %% @doc complete startup when no resources were given
-handle_cast({startup, []}, State) ->
-    {noreply, State, 0};
+handle_cast({startup, []}, #state{start_time = StartTime,
+                                lease_time = LeaseTime,
+                                command_queue = CommandQueue} = State) ->
+    gen_stomp:send(CommandQueue, "RESOURCES", []),
+    {noreply, State, time_left(StartTime, LeaseTime)};
 handle_cast({startup, Resources},
         #state{start_time = StartTime, lease_time = LeaseTime} = State) ->
-    %lists:foreach()
-    {noreply, State, 0};
+    add_resources(Resources),
+    {noreply, State, time_left(StartTime, LeaseTime)};
 handle_cast(delete, State) ->
     {stop, normal, State}.
 
@@ -145,3 +155,33 @@ lease_time_left_in_milliseconds(LeaseTime, TimeElapsed) ->
         Time when Time =< 0 -> 0;
         Time -> Time * 1000 % Convert to milliseconds
     end.
+
+%% @doc handle messages on the message queues
+handle_message([{type, "MESSAGE"}, {header, _Header}, {body, Body}], Queue, BroadcastQueue) ->
+    case from_topic(Queue) of
+        true -> add_resources(Body);
+        false -> handle_commands(Body, BroadcastQueue)
+    end.
+
+%% @doc check if its from the topic queue
+from_topic(QueueName) ->
+    string:str(QueueName, "/topic") =/= 0.
+
+add_resources([]) ->
+    ok;
+add_resources([R|T]) ->
+    rd_resource:insert(R),
+    add_resources(T);
+add_resources(Message) ->
+    Resources = binary_to_term(Message),
+    add_resources(Resources).
+
+handle_commands("RESOURCES", BroadcastQueue) ->
+    Resources = rd_resource:all(),
+    gen_stomp:send(BroadcastQueue, term_to_binary(Resources)),
+    ok;
+handle_commands(_Command, _Queue) ->
+    ok.
+
+
+
