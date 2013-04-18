@@ -3,26 +3,29 @@
 -include("resource.hrl").
 
 % API
--export([new/0, insert/1, delete_by_name/1, delete_by_type/1, 
-            find_by_name/1, find_by_type/1, all/0]).
+-export([new/0, insert/2, delete_by_name/2, delete_by_type/2,
+            delete_all/1, find_by_name/2, find_by_type/2, all/1]).
 
 new() ->
-    resources = ets:new(resources, [private, named_table, bag, {keypos, #resource.name}]).
+    ets:new(resources, [private, bag, {keypos, #resource.name}]).
 
-insert(Resource) ->
-	true = ets:insert(resources, Resource).
+insert(Descriptor, Resource) ->
+	true = ets:insert(Descriptor, Resource).
 
-delete_by_name(Name) ->
-    ets:match_delete(resources, #resource{name = Name, _ = '_'}).
+delete_by_name(Descriptor, Name) ->
+    ets:match_delete(Descriptor, #resource{name = Name, _ = '_'}).
 
-delete_by_type(Type) ->
-    ets:match_delete(resources, #resource{type = Type, _ = '_'}).
+delete_by_type(Descriptor, Type) ->
+    ets:match_delete(Descriptor, #resource{type = Type, _ = '_'}).
 
-find_by_name(Name) ->
-    ets:match_object(resources, #resource{name = Name, _ = '_'}).
+delete_all(Descriptor) ->
+    ets:delete_all_objects(Descriptor).
 
-find_by_type(Type) ->
-    ets:match_object(resources, #resource{type = Type, _ = '_'}).
+find_by_name(Descriptor, Name) ->
+    ets:match_object(Descriptor, #resource{name = Name, _ = '_'}).
 
-all() ->
-    ets:match_object(resources, #resource{_ = '_'}).
+find_by_type(Descriptor, Type) ->
+    ets:match_object(Descriptor, #resource{type = Type, _ = '_'}).
+
+all(Descriptor) ->
+    ets:match_object(Descriptor, #resource{_ = '_'}).
