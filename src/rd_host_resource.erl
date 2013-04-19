@@ -30,7 +30,6 @@
 -record(state,
     {
         rd,
-        count,
         host :: string(),
         command_queue :: string(),
         broadcast_queue :: string(),
@@ -108,7 +107,7 @@ init([HostBroadcastTopic, HostCommandQueue, Resources, LeaseTime]) ->
 
     State = #state{lease_time = LeaseTime, start_time = Now,
                     command_queue = HostCommandQueue,
-                    broadcast_queue = HostBroadcastTopic, rd = Rd, count = 0},
+                    broadcast_queue = HostBroadcastTopic, rd = Rd},
     TimeLeft = time_left(Now, LeaseTime),
     {ok, State, TimeLeft}.
 
@@ -161,13 +160,13 @@ handle_cast(delete, State) ->
 
 %% @doc On timeout go out and query for the resources.
 handle_info(timeout, #state{lease_time = LeaseTime, rd = Rd,
-                            command_queue = CommandQueue, count = Count} = State) ->
+                            command_queue = CommandQueue} = State) ->
     % On timeout we go and query for the resources.
     Now = seconds_now(),
     NewTimeout = time_left(Now, LeaseTime),
     rd_resource:delete_all(Rd),
     gen_stomp:send(CommandQueue, "RESOURCES", []),
-    {noreply, State#state{count = Count + 1, start_time = Now}, NewTimeout}.
+    {noreply, State#state{start_time = Now}, NewTimeout}.
 
 terminate(_Reason, _State) ->
     % Remove key from ETS
