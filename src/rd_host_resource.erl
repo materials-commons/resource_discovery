@@ -15,8 +15,9 @@
 
 %% API
 -export([start_link/6, start_link/7, start_self_link/6, start/1, start/2,
-            start/3, fetch/1, update/1, delete_resource/2, add_resource/2,
-            st/0, stself/0, jt/0]).
+            start/3, fetch/1, update/1, delete_resource/2, add_resource/2]).
+
+% -export([st/0, stself/0, stboth/0]).
 
 %% gen_stomp callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
@@ -41,18 +42,17 @@
 %% API
 %% ===================================================================
 
-st() ->
-    start_link("141.212.111.19", 61613, "guest", "guest", "141.212.111.19", 10).
+% st() ->
+%     start_link("141.212.111.19", 61613, "guest", "guest", "141.212.111.19", 10).
 
-stself() ->
-    start_self_link("141.212.111.19", 61613, "guest", "guest",
-        [#resource{host="a",type="a",name="a",attrs="a"}], "141.212.111.19").
+% stself() ->
+%     start_self_link("141.212.111.19", 61613, "guest", "guest",
+%         [#resource{host="a",type="a",name="a",attrs="a"}], "141.212.111.19").
 
-jt() ->
-    Jr = ?record_to_json(resource, #resource{host="a", type="a", name="a", attrs="a"}),
-    io:format("~s~n", [Jr]),
-    J = ?json_to_record(resource, Jr).
-    %Rs = jsonerl:decode(J).
+% stboth() ->
+%     {ok, MainPid} = stself(),
+%     {ok, Pid} = st(),
+%     {MainPid, Pid}.
 
 %% @doc start the server
 start_link(StompHost, Port, Username, Password, ResourceHost, LeaseTime) ->
@@ -65,13 +65,13 @@ start_link(StompHost, Port, Username, Password, Resources, ResourceHost, LeaseTi
         [{HostBroadcastTopic, []}],
         [HostBroadcastTopic, HostCommandQueue, Resources, LeaseTime]).
 
+%% @doc starts the main server that holds the real view of the resources
 start_self_link(StompHost, Port, Username, Password, Resources, ResourceHost) ->
     HostBroadcastTopic = string:concat("/topic/rd_", ResourceHost),
     HostCommandQueue = string:concat("/queue/rd_command_", ResourceHost),
     gen_stomp:start_link(?MODULE, StompHost, Port, Username, Password,
         [{HostCommandQueue, []}],
         [HostBroadcastTopic, HostCommandQueue, Resources, infinity]).
-
 
 start(Host, LeaseTime) ->
     rd_sup:start_child(Host, [], LeaseTime).
@@ -102,15 +102,15 @@ add_resource(Pid, #resource{} = Resource) ->
 init([HostBroadcastTopic, HostCommandQueue, Resources, LeaseTime]) ->
     Now = seconds_now(),
     Rd = rd_resource:new(),
+
     %% Do initialization outside of init.
     gen_server:cast(self(), {startup, Resources}),
-    %gen_server:cast(self(), {startup2, "Hello"}),
+
     State = #state{lease_time = LeaseTime, start_time = Now,
                     command_queue = HostCommandQueue,
                     broadcast_queue = HostBroadcastTopic, rd = Rd, count = 0},
     TimeLeft = time_left(Now, LeaseTime),
-    io:format("init timeout set to: ~p~n", [TimeLeft]),
-    {ok, State, TimeLeft}. %, time_left(Now, LeaseTime)}.
+    {ok, State, TimeLeft}.
 
 
 %% @doc Retrieve all resources
@@ -141,35 +141,33 @@ handle_cast({add_resource, Resource},
     TimeLeft = time_left(StartTime, LeaseTime),
     {noreply, State, TimeLeft};
 
-%% @doc complete startup when no resources were given
+%% @doc Complete startup when no resources were given by asking for
+%% for the resources from the server.
 handle_cast({startup, []}, #state{start_time = StartTime,
                                 lease_time = LeaseTime,
                                 command_queue = CommandQueue} = State) ->
-    io:format("Empty start~n", []),
     gen_stomp:send(CommandQueue, "RESOURCES", []),
     {noreply, State, time_left(StartTime, LeaseTime)};
 
+%% @doc Add resources that were specified in startup.
 handle_cast({startup, Resources},
         #state{start_time = StartTime,
                 lease_time = LeaseTime, rd = Rd} = State) ->
-    io:format("handle_start {startup, Resources}", []),
     add_resources(Rd, Resources),
-    io:format("startup time_left: ~p~n", [time_left(StartTime, LeaseTime)]),
     {noreply, State, time_left(StartTime, LeaseTime)};
 
 handle_cast(delete, State) ->
     {stop, normal, State}.
 
+%% @doc On timeout go out and query for the resources.
 handle_info(timeout, #state{lease_time = LeaseTime, rd = Rd,
                             command_queue = CommandQueue, count = Count} = State) ->
     % On timeout we go and query for the resources.
-    io:format("timeout called~n", []),
     Now = seconds_now(),
     NewTimeout = time_left(Now, LeaseTime),
     rd_resource:delete_all(Rd),
     gen_stomp:send(CommandQueue, "RESOURCES", []),
-    io:format("timeout setting ~p time_left: ~p~n", [Count, NewTimeout]),
-    {noreply, State#state{count = Count + 1}, NewTimeout}.
+    {noreply, State#state{count = Count + 1, start_time = Now}, NewTimeout}.
 
 terminate(_Reason, _State) ->
     % Remove key from ETS
@@ -204,9 +202,9 @@ lease_time_left_in_milliseconds(LeaseTime, TimeElapsed) ->
     end.
 
 %% @doc handle messages on the message queues
-handle_message(Rd, [{type, "MESSAGE"}, {header, _Header}, {body, Body}], Queue, BroadcastQueue) ->
-    io:format("handle_message Queue: ~p~n", [Queue]),
-    io:format("  Message: ~p~n", [Body]),
+handle_message(Rd, [{type, "MESSAGE"},
+                    {header, _Header}, {body, Body}],
+                Queue, BroadcastQueue) ->
     case from_broadcast_queue(Queue) of
         true -> add_message_as_resource(Rd, Body);
         false -> handle_commands(Body, BroadcastQueue, Rd)
@@ -219,26 +217,28 @@ handle_message(_Rd, _Message, _Queue, _BroadcastQueue) ->
 from_broadcast_queue(QueueName) ->
     string:str(QueueName, "/topic") =/= 0.
 
+%% @doc Add a list of resources to our database of resources
 add_resources(_Rd, []) ->
     ok;
 add_resources(Rd, [R|T]) ->
     rd_resource:insert(Rd, R),
     add_resources(Rd, T).
 
+%% @doc Resource comes in as JSON, turn back to record and add to database.
 add_message_as_resource(Rd, Message) ->
     R = ?json_to_record(resource, Message),
     rd_resource:insert(Rd, R).
 
+%% @doc Handle different types of commands.
 handle_commands("RESOURCES", BroadcastQueue, Rd) ->
-    io:format("handle_commands RESOURCES~n", []),
     broadcast_resources(BroadcastQueue, Rd),
-    %io:format("sending: ~p~n", [binary_to_list(term_to_binary(Resources))]),
-    %gen_stomp:send(BroadcastQueue, binary_to_list(term_to_binary(Resources)), []),
     ok;
 handle_commands(Command, Queue, _Rd) ->
+    % Add error logging here.
     io:format("handle_commands fall through ~p:~p~n", [Command, Queue]),
     ok.
 
+%% @doc Send each resource one at a time.
 broadcast_resources(BroadcastQueue, Rd) ->
     Resources = rd_resource:all(Rd),
     lists:foreach(
@@ -246,6 +246,7 @@ broadcast_resources(BroadcastQueue, Rd) ->
             broadcast_resource(Resource, BroadcastQueue)
         end, Resources).
 
+%% @doc Transform resource to JSON and then broadcast out on STOMP
 broadcast_resource(Resource, BroadcastQueue) ->
     J = ?record_to_json(resource, Resource),
     gen_stomp:send(BroadcastQueue, J, []).
