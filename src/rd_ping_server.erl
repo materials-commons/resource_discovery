@@ -6,10 +6,10 @@
 -behaviour(gen_server).
 
 %% API
--export([start_link/0, start_link/1, ping/1, ping_all/0]).
+-export([start_link/1, start_link/2, ping/1, ping_all/0]).
 
 %% Exported for spawn
--export([ping_host/2]).
+-export([ping_host/3]).
 
 
 %% gen_server callbacks
@@ -20,17 +20,17 @@
 
 -define(DEFAULT_LEASE_TIME, (60 * 60)). % Check every hour
 
--record(state, {lease_time, start_time}).
+-record(state, {lease_time, start_time, port}).
 
 %% ===================================================================
 %% API
 %% ===================================================================
 
-start_link() ->
-    start_link(?DEFAULT_LEASE_TIME).
+start_link(Port) ->
+    start_link(?DEFAULT_LEASE_TIME, Port).
 
-start_link(LeaseTime) ->
-    gen_server:start_link({local, ?SERVER}, [LeaseTime], []).
+start_link(LeaseTime, Port) ->
+    gen_server:start_link({local, ?SERVER}, [LeaseTime, Port], []).
 
 ping(Host) ->
     gen_server:cast(?SERVER, {ping, Host}).
@@ -42,12 +42,13 @@ ping_all() ->
 %% gen_server callbacks
 %% ===================================================================
 
-init([LeaseTime]) ->
+init([LeaseTime, Port]) ->
     %% Trap exits and handle ourselves.
     process_flag(trap_exit, true),
     Now = lease:seconds_now(),
     TimeLeft = lease:time_left(Now, LeaseTime),
-    {ok, #state{lease_time = LeaseTime, start_time = Now}, TimeLeft}.
+    State = #state{lease_time = LeaseTime, start_time = Now, port = Port},
+    {ok, State, TimeLeft}.
 
 handle_call(_Msg, _From, #state{lease_time = LeaseTime,
                                 start_time = StartTime} = State) ->
@@ -55,17 +56,17 @@ handle_call(_Msg, _From, #state{lease_time = LeaseTime,
     TimeLeft = lease:time_left(StartTime, LeaseTime),
     {reply, ok, State, TimeLeft}.
 
-handle_cast({ping, Host}, #state{lease_time = LeaseTime,
+handle_cast({ping, Host}, #state{lease_time = LeaseTime, port = Port,
                                     start_time = StartTime} = State) ->
     case rd_store:lookup(Host) of
-        {ok, Pid} -> start_pinger(Host, Pid);
+        {ok, Pid} -> start_pinger(Host, Pid, Port);
         {error, not_found} -> ok
     end,
     TimeLeft = lease:time_left(StartTime, LeaseTime),
     {noreply, State, TimeLeft};
-handle_cast(ping_all, #state{lease_time = LeaseTime,
+handle_cast(ping_all, #state{lease_time = LeaseTime, port = Port,
                                 start_time = StartTime} = State) ->
-    start_pingers(),
+    start_pingers(Port),
     TimeLeft = lease:time_left(StartTime, LeaseTime),
     {noreply, State, TimeLeft};
 handle_cast(stop, State) ->
@@ -73,8 +74,8 @@ handle_cast(stop, State) ->
 
 handle_info({'EXIT', _Pid, _Reason}, State) ->
     {noreply, State};
-handle_info(timeout, #state{lease_time = LeaseTime} = State)->
-    start_pingers(),
+handle_info(timeout, #state{lease_time = LeaseTime, port = Port} = State)->
+    start_pingers(Port),
     Now = lease:seconds_now(),
     NewTimeout = lease:time_left(Now, LeaseTime),
     {noreply, State#state{start_time = Now}, NewTimeout}.
@@ -89,19 +90,22 @@ code_change(_OldVsn, State, _Extra) ->
 %% Local
 %% ===================================================================
 
-start_pingers() ->
-    lists:foreach(fun start_pinger/1, rd_store:all()).
+start_pingers(Port) ->
+    lists:foreach(
+            fun(Entry) ->
+                start_pinger(Entry, Port)
+            end, rd_store:all()).
 
-start_pinger({Host, Pid}) ->
-    start_pinger(Host, Pid).
+start_pinger({Host, Pid}, Port) ->
+    start_pinger(Host, Pid, Port).
 
-start_pinger(Host, Pid) ->
-    spawn(?MODULE, ping_host, [Host, Pid]).
+start_pinger(Host, Pid, Port) ->
+    spawn(?MODULE, ping_host, [Host, Pid, Port]).
 
-ping_host(Host, Pid) ->
+ping_host(Host, Pid, Port) ->
     try
-        {ok, Sock} = gen_tcp:connect(Host, 12233, [{active, false}]),
-        gen_tcp:send(Sock, "PING"),
+        {ok, Sock} = gen_tcp:connect(Host, Port, [{active, false}]),
+        ok = gen_tcp:send(Sock, "PING"),
         % wait 10 seconds for a response
         {ok, _Response} = gen_tcp:recv(Sock, 0, [10 * 1000])
     catch

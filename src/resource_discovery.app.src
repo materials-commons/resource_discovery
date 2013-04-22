@@ -2,19 +2,39 @@
  [
   {description, ""},
   {vsn, "1"},
-  {modules, [
-                rd_resource_server,
-                rd_resource,
-                resource_discovery_app,
-                rd_sup
-            ]},
-  {registered, []},
-  {applications, [
-                  kernel,
-                  stdlib,
-                  handyman,
-                  stomp_client
-                 ]},
+  {modules,
+        [
+            lease,
+            resource_discovery,
+            rd_resource_db,
+            rd_store,
+            rd_host_sup,
+            rd_resource_sup,
+            rd_resource_server,
+            rd_ping_sup,
+            rd_ping_server,
+            rd_pong_sup,
+            rd_pong_server,
+            rd_core_sup,
+            rd_app
+        ]},
+  {registered,
+        [
+            rd_core_sup,
+            rd_host_sup,
+            rd_ping_server,
+            rd_ping_sup,
+            rd_pong_sup,
+            rd_resource_sup
+        ]},
+  {applications,
+        [
+            kernel,
+            stdlib,
+            handyman,
+            ossp_uuid,
+            stomp_client
+         ]},
   {mod, { resource_discovery_app, []}},
   {env, []}
  ]}.
