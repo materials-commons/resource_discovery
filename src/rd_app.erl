@@ -10,7 +10,7 @@
 %% ===================================================================
 
 start(_StartType, _StartArgs) ->
-    resource_discovery_sup:start_link().
+    rd_core_sup:start_link().
 
 stop(_State) ->
     ok.
