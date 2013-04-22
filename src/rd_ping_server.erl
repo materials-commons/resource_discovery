@@ -6,7 +6,10 @@
 -behaviour(gen_server).
 
 %% API
--export([start_link/0, ping/1, ping_all/0]).
+-export([start_link/0, start_link/1, ping/1, ping_all/0]).
+
+%% Exported for spawn
+-export([ping_host/2]).
 
 
 %% gen_server callbacks
@@ -15,13 +18,19 @@
 
 -define(SERVER, ?MODULE).
 
+-define(DEFAULT_LEASE_TIME, (60 * 60)). % Check every hour
+
 -record(state, {lease_time, start_time}).
 
 %% ===================================================================
 %% API
 %% ===================================================================
+
 start_link() ->
-    gen_server:start_link({local, ?SERVER}, [], []).
+    start_link(?DEFAULT_LEASE_TIME).
+
+start_link(LeaseTime) ->
+    gen_server:start_link({local, ?SERVER}, [LeaseTime], []).
 
 ping(Host) ->
     gen_server:cast(?SERVER, {ping, Host}).
@@ -87,7 +96,20 @@ start_pinger({Host, Pid}) ->
     start_pinger(Host, Pid).
 
 start_pinger(Host, Pid) ->
-    spawn(rd_ping, ping_host, [Host, Pid]).
+    spawn(?MODULE, ping_host, [Host, Pid]).
+
+ping_host(Host, Pid) ->
+    try
+        {ok, Sock} = gen_tcp:connect(Host, 12233, [{active, false}]),
+        gen_tcp:send(Sock, "PING"),
+        % wait 10 seconds for a response
+        {ok, _Response} = gen_tcp:recv(Sock, 0, [10 * 1000])
+    catch
+        _:_ ->
+            %% Socket communication error. Host must be down.
+            %% Remove host by having its resource tracker exit.
+            rd_resource_server:stop(Pid)
+    end.
 
 
 
