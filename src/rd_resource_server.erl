@@ -105,7 +105,7 @@ add_resource(Pid, #resource{} = Resource) ->
 
 %% @doc No resources specified, need to query host for them.
 init([HostBroadcastTopic, HostCommandQueue, Resources, LeaseTime]) ->
-    Now = seconds_now(),
+    Now = lease:seconds_now(),
     Rd = rd_resource_db:new(),
 
     %% Do initialization outside of init.
@@ -114,7 +114,7 @@ init([HostBroadcastTopic, HostCommandQueue, Resources, LeaseTime]) ->
     State = #state{lease_time = LeaseTime, start_time = Now,
                     command_queue = HostCommandQueue,
                     broadcast_queue = HostBroadcastTopic, rd = Rd},
-    TimeLeft = time_left(Now, LeaseTime),
+    TimeLeft = lease:time_left(Now, LeaseTime),
     {ok, State, TimeLeft}.
 
 
@@ -122,20 +122,20 @@ init([HostBroadcastTopic, HostCommandQueue, Resources, LeaseTime]) ->
 handle_call(fetch, _From,
         #state{lease_time = LeaseTime, start_time = StartTime, rd = Rd} = State) ->
     Resources = rd_resource_db:all(Rd),
-    TimeLeft = time_left(StartTime, LeaseTime),
+    TimeLeft = lease:time_left(StartTime, LeaseTime),
     {reply, {ok, Resources}, State, TimeLeft}.
 
 %% @doc
 handle_cast(update,
         #state{lease_time = LeaseTime, start_time = StartTime} = State) ->
-    TimeLeft = time_left(StartTime, LeaseTime),
+    TimeLeft = lease:time_left(StartTime, LeaseTime),
     {noreply, State, TimeLeft};
 
 handle_cast([{message, Message}, {queue, Queue}],
         #state{start_time = StartTime, lease_time = LeaseTime,
                 broadcast_queue = BroadcastQueue, rd = Rd} = State) ->
     handle_message(Rd, Message, Queue, BroadcastQueue),
-    TimeLeft = time_left(StartTime, LeaseTime),
+    TimeLeft = lease:time_left(StartTime, LeaseTime),
     {noreply, State, TimeLeft};
 
 handle_cast({add_resource, Resource},
@@ -143,7 +143,7 @@ handle_cast({add_resource, Resource},
                 rd = Rd, broadcast_queue = BroadcastQueue} = State) ->
     add_resources(Rd, [Resource]),
     broadcast_resource(Resource, BroadcastQueue),
-    TimeLeft = time_left(StartTime, LeaseTime),
+    TimeLeft = lease:time_left(StartTime, LeaseTime),
     {noreply, State, TimeLeft};
 
 %% @doc Complete startup when no resources were given by asking for
@@ -152,14 +152,14 @@ handle_cast({startup, []}, #state{start_time = StartTime,
                                 lease_time = LeaseTime,
                                 command_queue = CommandQueue} = State) ->
     gen_stomp:send(CommandQueue, "RESOURCES", []),
-    {noreply, State, time_left(StartTime, LeaseTime)};
+    {noreply, State, lease:time_left(StartTime, LeaseTime)};
 
 %% @doc Add resources that were specified in startup.
 handle_cast({startup, Resources},
         #state{start_time = StartTime,
                 lease_time = LeaseTime, rd = Rd} = State) ->
     add_resources(Rd, Resources),
-    {noreply, State, time_left(StartTime, LeaseTime)};
+    {noreply, State, lease:time_left(StartTime, LeaseTime)};
 
 %% @doc Stop the server.
 handle_cast(stop, State) ->
@@ -169,8 +169,8 @@ handle_cast(stop, State) ->
 handle_info(timeout, #state{lease_time = LeaseTime, rd = Rd,
                             command_queue = CommandQueue} = State) ->
     % On timeout we go and query for the resources.
-    Now = seconds_now(),
-    NewTimeout = time_left(Now, LeaseTime),
+    Now = lease:seconds_now(),
+    NewTimeout = lease:time_left(Now, LeaseTime),
     rd_resource_db:delete_all(Rd),
     gen_stomp:send(CommandQueue, "RESOURCES", []),
     {noreply, State#state{start_time = Now}, NewTimeout}.
@@ -186,27 +186,6 @@ code_change(_OldVsn, State, _Extra) ->
 %% ===================================================================
 %% Local functions
 %% ===================================================================
-
-%% @doc TTL never expires
-time_left(_StartTime, infinity) ->
-    infinity;
-%% @doc Convert TTL to milliseconds
-time_left(StartTime, LeaseTime) ->
-    CurrentTimeInSeconds = seconds_now(),
-    TimeElapsed = CurrentTimeInSeconds - StartTime,
-    lease_time_left_in_milliseconds(LeaseTime, TimeElapsed).
-
-%% @doc Get seconds now
-seconds_now() ->
-    Now = calendar:local_time(),
-    calendar:datetime_to_gregorian_seconds(Now).
-
-%% @doc convert seconds to milliseconds
-lease_time_left_in_milliseconds(LeaseTime, TimeElapsed) ->
-    case LeaseTime - TimeElapsed of
-        Time when Time =< 0 -> 0;
-        Time -> Time * 1000 % Convert to milliseconds
-    end.
 
 %% @doc handle messages on the message queues
 handle_message(Rd, [{type, "MESSAGE"},

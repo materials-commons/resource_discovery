@@ -4,7 +4,8 @@
 %%% ===================================================================
 
 -module(rd_store).
--export([init/0, insert/2, lookup/1, delete_by_pid/1, delete_by_host/1]).
+-export([init/0, insert/2, lookup/1, delete_by_pid/1,
+            delete_by_host/1, all/0]).
 
 -define(TABLE, ?MODULE).
 
@@ -24,6 +25,11 @@ lookup(Host) ->
         [{Host, Pid}] -> {ok, Pid};
         [] -> {error, not_found}
     end.
+
+%% @doc Returns all entries.
+all() ->
+    [Entry || [Entry] <- ets:match(?TABLE, '$1')].
+
 
 %% @doc Remove the host to pid mapping (by pid)
 delete_by_pid(Pid) ->
