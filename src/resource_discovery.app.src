@@ -35,6 +35,6 @@
             ossp_uuid,
             stomp_client
          ]},
-  {mod, { resource_discovery_app, []}},
+  {mod, { rd_app, []}},
   {env, []}
  ]}.

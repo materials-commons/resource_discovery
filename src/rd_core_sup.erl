@@ -28,9 +28,9 @@ start_link() ->
 %% @private
 init(Arguments) ->
     Supervisors = [
-        ?CHILD(rd_resource_sup, Arguments),
-        ?CHILD(rd_host_sup, Arguments),
-        ?CHILD(rd_ping_sup, Arguments),
-        ?CHILD(rd_pong_sup, Arguments)
+        % ?CHILD(rd_resource_sup, Arguments),
+        % ?CHILD(rd_host_sup, Arguments),
+        % ?CHILD(rd_ping_sup, Arguments),
+        % ?CHILD(rd_pong_sup, Arguments)
     ],
     {ok, { {one_for_one, 5, 10}, Supervisors } }.

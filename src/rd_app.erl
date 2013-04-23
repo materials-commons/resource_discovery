@@ -10,6 +10,8 @@
 %% ===================================================================
 
 start(_StartType, _StartArgs) ->
+    % {ok, Value} = application:get_env(resource_discovery, ping_port),
+    % io:format("value = ~p~n", [Value]),
     rd_core_sup:start_link().
 
 stop(_State) ->
