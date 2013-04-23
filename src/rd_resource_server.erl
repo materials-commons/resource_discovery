@@ -55,10 +55,10 @@
 %     {MainPid, Pid}.
 
 %% @doc start the server
-start_link(StompHost, Port, Username, Password, ResourceHost, LeaseTime) ->
-    start_link(StompHost, Port, Username, Password, [], ResourceHost, LeaseTime).
+start_link(StompHost, Port, Username, Password, LeaseTime, ResourceHost) ->
+    start_link(StompHost, Port, Username, Password, LeaseTime, ResourceHost, []).
 
-start_link(StompHost, Port, Username, Password, Resources, ResourceHost, LeaseTime) ->
+start_link(StompHost, Port, Username, Password, LeaseTime, ResourceHost, Resources) ->
     HostBroadcastTopic = string:concat("/topic/rd_", ResourceHost),
     HostCommandQueue = string:concat("/queue/rd_command_", ResourceHost),
     gen_stomp:start_link(?MODULE, StompHost, Port, Username, Password,
@@ -66,7 +66,7 @@ start_link(StompHost, Port, Username, Password, Resources, ResourceHost, LeaseTi
         [HostBroadcastTopic, HostCommandQueue, Resources, LeaseTime]).
 
 %% @doc starts the main server that holds the real view of the resources
-start_host_link(StompHost, Port, Username, Password, Resources, ResourceHost) ->
+start_host_link(StompHost, Port, Username, Password, ResourceHost, Resources) ->
     HostBroadcastTopic = string:concat("/topic/rd_", ResourceHost),
     HostCommandQueue = string:concat("/queue/rd_command_", ResourceHost),
     gen_stomp:start_link(?MODULE, StompHost, Port, Username, Password,

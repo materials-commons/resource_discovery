@@ -2,7 +2,7 @@
 -behaviour(supervisor).
 
 %% API
--export([start_link/0]).
+-export([start_link/1]).
 
 %% Supervisor callbacks
 -export([init/1]).
@@ -17,8 +17,8 @@
 %% ===================================================================
 
 %% @doc starts the supervisor.
-start_link() ->
-    supervisor:start_link({local, ?SERVER}, ?MODULE, []).
+start_link(Arguments) ->
+    supervisor:start_link({local, ?SERVER}, ?MODULE, Arguments).
 
 
 %% ===================================================================
@@ -27,10 +27,26 @@ start_link() ->
 
 %% @private
 init(Arguments) ->
+    PingPongPort = get_value(Arguments, ping_pong_port),
+    PingHeartBeat = get_value(Arguments, ping_heartbeat),
+    StompHost= get_value(Arguments, stomp_host),
+    HostIpAddress = get_value(Arguments, hostip),
+    StompPort = get_value(Arguments, stomp_port),
+    StompUser = get_value(Arguments, stomp_user),
+    StompPassword = get_value(Arguments, stomp_password),
+    RdLease = get_value(Arguments, rd_lease),
+    LSock = get_value(Arguments, lsock),
+
     Supervisors = [
-        % ?CHILD(rd_resource_sup, Arguments),
-        % ?CHILD(rd_host_sup, Arguments),
-        % ?CHILD(rd_ping_sup, Arguments),
-        % ?CHILD(rd_pong_sup, Arguments)
+        ?CHILD(rd_resource_sup, [StompHost, StompPort, StompUser,
+                                    StompPassword, RdLease]),
+        ?CHILD(rd_host_sup, [StompHost, StompPort, StompUser,
+                                StompPassword, HostIpAddress, []]),
+        ?CHILD(rd_ping_sup, [PingHeartBeat, PingPongPort]),
+        ?CHILD(rd_pong_sup, [LSock])
     ],
     {ok, { {one_for_one, 5, 10}, Supervisors } }.
+
+get_value(List, Key) ->
+    {Key, Value} = lists:keyfind(Key, 1, List),
+    Value.

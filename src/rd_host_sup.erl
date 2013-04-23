@@ -3,7 +3,7 @@
 -behaviour(supervisor).
 
 %% API
--export([start_link/0]).
+-export([start_link/6]).
 
 %% Supervisor callbacks
 -export([init/1]).
@@ -18,8 +18,9 @@
 %% ===================================================================
 
 %% @doc starts the supervisor.
-start_link() ->
-    supervisor:start_link({local, ?SERVER}, ?MODULE, []).
+start_link(StompHost, StompPort, StompUser, StompPassword, Host, Resources) ->
+    supervisor:start_link({local, ?SERVER}, ?MODULE,
+                [StompHost, StompPort, StompUser, StompPassword, Host, Resources]).
 
 
 %% ===================================================================
@@ -27,6 +28,7 @@ start_link() ->
 %% ===================================================================
 
 %% @private
-init([Arguments] = Args) ->
-    RdHostServer = ?CHILD(rd_resource_server, Args),
+init([StompHost, StompPort, StompUser, StompPassword, Host, Resources]) ->
+    RdHostServer = ?CHILD(rd_resource_server,
+            [StompHost, StompPort, StompUser, StompPassword, Host, Resources]),
     {ok, { {one_for_one, 5, 10}, [RdHostServer] } }.
