@@ -18,7 +18,7 @@
 
 -define(SERVER, ?MODULE).
 
--define(DEFAULT_heartbeat, (60 * 60)). % Check every hour
+-define(DEFAULT_HEARTBEAT, (60 * 60)). % Check every hour
 
 -record(state, {heartbeat, start_time, port}).
 
@@ -27,7 +27,7 @@
 %% ===================================================================
 
 start_link(Port) ->
-    start_link(?DEFAULT_heartbeat, Port).
+    start_link(?DEFAULT_HEARTBEAT, Port).
 
 start_link(Heartbeat, Port) ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [Heartbeat, Port], []).
