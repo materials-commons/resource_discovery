@@ -8,7 +8,7 @@
 -export([init/1]).
 
 %% Helper macro for declaring children of supervisor
--define(CHILD(I, Args), {I, {I, start_link, [Args]}, permanent, 5000, supervisor, [I]}).
+-define(CHILD(I, Args), {I, {I, start_link, Args}, permanent, 5000, supervisor, [I]}).
 
 -define(SERVER, ?MODULE).
 

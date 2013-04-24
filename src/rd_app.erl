@@ -3,13 +3,13 @@
 -behaviour(application).
 
 %% Application callbacks
--export([start/2, stop/1, startme/0]).
+-export([start/2, start/0, stop/1]).
 
 %% ===================================================================
 %% Application callbacks
 %% ===================================================================
 
-startme() ->
+start() ->
     application:start(handyman),
     application:start(ossp_uuid),
     application:start(stomp_client),

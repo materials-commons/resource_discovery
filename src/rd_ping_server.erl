@@ -18,19 +18,19 @@
 
 -define(SERVER, ?MODULE).
 
--define(DEFAULT_LEASE_TIME, (60 * 60)). % Check every hour
+-define(DEFAULT_heartbeat, (60 * 60)). % Check every hour
 
--record(state, {lease_time, start_time, port}).
+-record(state, {heartbeat, start_time, port}).
 
 %% ===================================================================
 %% API
 %% ===================================================================
 
 start_link(Port) ->
-    start_link(?DEFAULT_LEASE_TIME, Port).
+    start_link(?DEFAULT_heartbeat, Port).
 
-start_link(LeaseTime, Port) ->
-    gen_server:start_link({local, ?SERVER}, [LeaseTime, Port], []).
+start_link(Heartbeat, Port) ->
+    gen_server:start_link({local, ?SERVER}, ?MODULE, [Heartbeat, Port], []).
 
 ping(Host) ->
     gen_server:cast(?SERVER, {ping, Host}).
@@ -42,42 +42,42 @@ ping_all() ->
 %% gen_server callbacks
 %% ===================================================================
 
-init([LeaseTime, Port]) ->
+init([Heartbeat, Port]) ->
     %% Trap exits and handle ourselves.
     process_flag(trap_exit, true),
     Now = lease:seconds_now(),
-    TimeLeft = lease:time_left(Now, LeaseTime),
-    State = #state{lease_time = LeaseTime, start_time = Now, port = Port},
+    TimeLeft = lease:time_left(Now, Heartbeat),
+    State = #state{heartbeat = Heartbeat, start_time = Now, port = Port},
     {ok, State, TimeLeft}.
 
-handle_call(_Msg, _From, #state{lease_time = LeaseTime,
+handle_call(_Msg, _From, #state{heartbeat = Heartbeat,
                                 start_time = StartTime} = State) ->
     % Error log unknown message
-    TimeLeft = lease:time_left(StartTime, LeaseTime),
+    TimeLeft = lease:time_left(StartTime, Heartbeat),
     {reply, ok, State, TimeLeft}.
 
-handle_cast({ping, Host}, #state{lease_time = LeaseTime, port = Port,
+handle_cast({ping, Host}, #state{heartbeat = Heartbeat, port = Port,
                                     start_time = StartTime} = State) ->
     case rd_store:lookup(Host) of
         {ok, Pid} -> start_pinger(Host, Pid, Port);
         {error, not_found} -> ok
     end,
-    TimeLeft = lease:time_left(StartTime, LeaseTime),
+    TimeLeft = lease:time_left(StartTime, Heartbeat),
     {noreply, State, TimeLeft};
-handle_cast(ping_all, #state{lease_time = LeaseTime, port = Port,
+handle_cast(ping_all, #state{heartbeat = Heartbeat, port = Port,
                                 start_time = StartTime} = State) ->
     start_pingers(Port),
-    TimeLeft = lease:time_left(StartTime, LeaseTime),
+    TimeLeft = lease:time_left(StartTime, Heartbeat),
     {noreply, State, TimeLeft};
 handle_cast(stop, State) ->
     {stop, normal, State}.
 
 handle_info({'EXIT', _Pid, _Reason}, State) ->
     {noreply, State};
-handle_info(timeout, #state{lease_time = LeaseTime, port = Port} = State)->
+handle_info(timeout, #state{heartbeat = Heartbeat, port = Port} = State)->
     start_pingers(Port),
     Now = lease:seconds_now(),
-    NewTimeout = lease:time_left(Now, LeaseTime),
+    NewTimeout = lease:time_left(Now, Heartbeat),
     {noreply, State#state{start_time = Now}, NewTimeout}.
 
  terminate(_Reason, _State) ->
