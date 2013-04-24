@@ -14,11 +14,9 @@
 -include_lib("handyman/include/jsonerl.hrl").
 
 %% API
--export([start_link/6, start_link/7, start_host_link/6, start/1, start/2,
-            start/3, fetch/1, update/1, delete_resource/2, add_resource/2,
-            stop/1]).
+-export([start_link/6, start_link/7, start/1, start/2, start/3,
+            fetch/1, update/1, stop/1]).
 
-% -export([st/0, stself/0, stboth/0]).
 
 %% gen_stomp callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
@@ -42,18 +40,6 @@
 %% API
 %% ===================================================================
 
-% st() ->
-%     start_link("141.212.111.19", 61613, "guest", "guest", "141.212.111.19", 10).
-
-% stself() ->
-%     start_self_link("141.212.111.19", 61613, "guest", "guest",
-%         [#resource{host="a",type="a",name="a",attrs="a"}], "141.212.111.19").
-
-% stboth() ->
-%     {ok, MainPid} = stself(),
-%     {ok, Pid} = st(),
-%     {MainPid, Pid}.
-
 %% @doc start the server
 start_link(StompHost, Port, Username, Password, LeaseTime, ResourceHost) ->
     start_link(StompHost, Port, Username, Password, LeaseTime, ResourceHost, []).
@@ -64,14 +50,6 @@ start_link(StompHost, Port, Username, Password, LeaseTime, ResourceHost, Resourc
     gen_stomp:start_link(?MODULE, StompHost, Port, Username, Password,
         [{HostBroadcastTopic, []}],
         [HostBroadcastTopic, HostCommandQueue, Resources, LeaseTime]).
-
-%% @doc starts the main server that holds the real view of the resources
-start_host_link(StompHost, Port, Username, Password, ResourceHost, Resources) ->
-    HostBroadcastTopic = string:concat("/topic/rd_", ResourceHost),
-    HostCommandQueue = string:concat("/queue/rd_command_", ResourceHost),
-    gen_stomp:start_link(?MODULE, StompHost, Port, Username, Password,
-        [{HostCommandQueue, []}],
-        [HostBroadcastTopic, HostCommandQueue, Resources, infinity]).
 
 start(Host, LeaseTime) when is_integer(LeaseTime) ->
     rd_sup:start_child(Host, [], LeaseTime);
@@ -90,14 +68,9 @@ fetch(Pid) ->
 stop(Pid) ->
     gen_server:cast(Pid, stop).
 
-delete_resource(Pid, #resource{} = Resource) ->
-    gen_server:cast(Pid, {delete_resource, Resource}).
-
 update(Pid) ->
     gen_server:cast(Pid, update).
 
-add_resource(Pid, #resource{} = Resource) ->
-    gen_server:cast(Pid, {add_resource, Resource}).
 
 %% ===================================================================
 %% gen_stomp callbacks
@@ -135,14 +108,6 @@ handle_cast([{message, Message}, {queue, Queue}],
         #state{start_time = StartTime, lease_time = LeaseTime,
                 broadcast_queue = BroadcastQueue, rd = Rd} = State) ->
     handle_message(Rd, Message, Queue, BroadcastQueue),
-    TimeLeft = lease:time_left(StartTime, LeaseTime),
-    {noreply, State, TimeLeft};
-
-handle_cast({add_resource, Resource},
-        #state{start_time = StartTime, lease_time = LeaseTime,
-                rd = Rd, broadcast_queue = BroadcastQueue} = State) ->
-    add_resources(Rd, [Resource]),
-    broadcast_resource(Resource, BroadcastQueue),
     TimeLeft = lease:time_left(StartTime, LeaseTime),
     {noreply, State, TimeLeft};
 
