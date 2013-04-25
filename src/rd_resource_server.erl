@@ -154,7 +154,13 @@ code_change(_OldVsn, State, _Extra) ->
 %% @doc handle messages on the message queues
 handle_message(Rd, [{type, "MESSAGE"},
                     {header, _Header}, {body, Body}]) ->
-    add_message_as_resource(Rd, Body);
+    %% Resources comes in as a Erlang term turned into a string,
+    %% turn back into a list of records and add them to database.
+    RList = handyterm:string_to_term(Body),
+    lists:foreach(
+        fun (Resource) ->
+            rd_resource_db:insert(Rd, Resource)
+        end, RList);
 
 %% @doc Handle non-message types
 handle_message(_Rd, _Message) ->
@@ -167,10 +173,7 @@ add_resources(Rd, [R|T]) ->
     rd_resource_db:insert(Rd, R),
     add_resources(Rd, T).
 
-%% @doc Resource comes in as JSON, turn back to record and add to database.
-add_message_as_resource(Rd, Message) ->
-    R = ?json_to_record(resource, Message),
-    rd_resource_db:insert(Rd, R).
+
 
 
 
