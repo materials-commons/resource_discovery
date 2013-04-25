@@ -156,12 +156,11 @@ handle_commands(Command, Queue, _Rd) ->
 %% @doc Send each resource one at a time.
 broadcast_resources(BroadcastQueue, Rd) ->
     Resources = rd_resource_db:all(Rd),
-    lists:foreach(
-        fun (Resource) ->
-            broadcast_resource(Resource, BroadcastQueue)
-        end, Resources).
+    ResourcesAsString = handyterm:term_to_string(Resources),
+    gen_stomp:send(BroadcastQueue, ResourcesAsString, []).
 
-%% @doc Transform resource to JSON and then broadcast out on STOMP
+%% @doc Transform resource to list of Records, turn into string and send
 broadcast_resource(Resource, BroadcastQueue) ->
-    J = ?record_to_json(resource, Resource),
-    gen_stomp:send(BroadcastQueue, J, []).
+    %% Other side expects a list of records.
+    RecordsListAsString = handyterm:term_to_string([Resource]),
+    gen_stomp:send(BroadcastQueue, RecordsListAsString, []).
