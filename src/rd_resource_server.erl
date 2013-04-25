@@ -100,7 +100,9 @@ handle_call(fetch, _From,
 
 %% @doc
 handle_cast(update,
-        #state{lease_time = LeaseTime, start_time = StartTime} = State) ->
+        #state{lease_time = LeaseTime, start_time = StartTime,
+                command_queue = CommandQueue} = State) ->
+    gen_stomp:send(CommandQueue, "RESOURCES", []),
     TimeLeft = lease:time_left(StartTime, LeaseTime),
     {noreply, State, TimeLeft};
 

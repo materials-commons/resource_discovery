@@ -107,11 +107,12 @@ ping_host(Host, Pid, Port) ->
         {ok, Sock} = gen_tcp:connect(Host, Port, [{active, false}]),
         ok = gen_tcp:send(Sock, "PING"),
         % wait 10 seconds for a response
-        {ok, _Response} = gen_tcp:recv(Sock, 0, [10 * 1000])
+        {ok, _Response} = gen_tcp:recv(Sock, 0, 10 * 1000)
     catch
-        _:_ ->
+        _What:_Reason ->
             %% Socket communication error. Host must be down.
             %% Remove host by having its resource tracker exit.
+            %io:format("Ping failed ~p:~p, calling stop on ~p~n", [What,Reason,Pid]),
             rd_resource_server:stop(Pid)
     end.
 

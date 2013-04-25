@@ -9,7 +9,7 @@
 -export([init/1]).
 
 %% Helper macro for declaring children of supervisor
--define(CHILD(I, Args), {I, {I, start_host_link, Args}, permanent, brutal_kill, worker, [I]}).
+-define(CHILD(I, Args), {I, {I, start_link, Args}, permanent, brutal_kill, worker, [I]}).
 
 -define(SERVER, ?MODULE).
 
@@ -29,6 +29,6 @@ start_link(StompHost, StompPort, StompUser, StompPassword, Host, Resources) ->
 
 %% @private
 init([StompHost, StompPort, StompUser, StompPassword, Host, Resources]) ->
-    RdHostServer = ?CHILD(rd_resource_server,
+    RdHostServer = ?CHILD(rd_host_server,
             [StompHost, StompPort, StompUser, StompPassword, Host, Resources]),
     {ok, { {one_for_one, 5, 10}, [RdHostServer] } }.

@@ -1,5 +1,5 @@
 
--record(resource, {host, type, name, attrs, event}).
+-record(resource, {host, type, name, attrs}).
 -type resource() :: #resource{}.
 
 -record(hostevent, {host, event}).

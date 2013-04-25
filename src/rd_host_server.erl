@@ -45,19 +45,19 @@ start_link(StompHost, Port, Username, Password, ResourceHost, Resources) ->
         [HostBroadcastTopic, HostCommandQueue, ResourceHost, Resources]).
 
 fetch() ->
-    gen_server:call(?SERVER, fetch).
+    gen_stomp:call(?SERVER, fetch).
 
 stop() ->
-    gen_server:cast(?SERVER, stop).
+    gen_stomp:cast(?SERVER, stop).
 
 stop(Pid) ->
-    gen_server:cast(Pid, stop).
+    gen_stomp:cast(Pid, stop).
 
 delete_resource(#resource{} = Resource) ->
-    gen_server:cast(?SERVER, {delete_resource, Resource}).
+    gen_stomp:cast(?SERVER, {delete_resource, Resource}).
 
 add_resource(#resource{} = Resource) ->
-    gen_server:cast(?SERVER, {add_resource, Resource}).
+    gen_stomp:cast(?SERVER, {add_resource, Resource}).
 
 %% ===================================================================
 %% gen_stomp callbacks
@@ -68,13 +68,13 @@ init([HostBroadcastTopic, HostCommandQueue, ResourceHost, Resources]) ->
     Rd = rd_resource_db:new(),
 
     %% Do initialization outside of init.
-    gen_server:cast(self(), {startup, Resources}),
+    gen_stomp:cast(self(), {startup, Resources}),
+    rd_store:insert(ResourceHost, self()),
 
     State = #state{ command_queue = HostCommandQueue, host = ResourceHost,
                     broadcast_queue = HostBroadcastTopic, rd = Rd},
-    %% Wait two minutes before broadcasting our resources
-    TimeToWait = 2 * 60 * 1000,
-    {ok, State, TimeToWait}.
+
+    {ok, State}.
 
 %% @doc Retrieve all resources
 handle_call(fetch, _From, #state{rd = Rd} = State) ->
@@ -95,16 +95,20 @@ handle_cast({add_resource, Resource},
 %% @doc Add resources that were specified in startup.
 handle_cast({startup, Resources},
                 #state{rd = Rd, ss_queue = SSQueue, host = Host} = State) ->
+    io:format("rd_host_server startup~n"),
     add_resources(Rd, Resources),
     UpEvent = handyterm:term_to_string(#hostevent{host = Host, event = up}),
     gen_stomp:send(SSQueue, UpEvent, []),
-    {noreply, State};
+    %% Wait two minutes before broadcasting our resources
+    TimeToWait = 2 * 2 * 1000,
+    {noreply, State, 2000};
 
 %% @doc Stop the server.
 handle_cast(stop, State) ->
     {stop, normal, State}.
 
 handle_info(timeout, #state{broadcast_queue = BroadcastQueue, rd = Rd} = State) ->
+    io:format("rd_host_server handle_info timeout~n",[]),
     broadcast_resources(BroadcastQueue, Rd),
     {noreply, State};
 
