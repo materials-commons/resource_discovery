@@ -96,7 +96,7 @@ handle_cast({add_resource, Resource},
 handle_cast({startup, Resources},
                 #state{rd = Rd, ss_queue = SSQueue, host = Host} = State) ->
     add_resources(Rd, Resources),
-    UpEvent = ?record_to_json(hostevent, #hostevent{host = Host, event = up}),
+    UpEvent = handyterm:term_to_string(#hostevent{host = Host, event = up}),
     gen_stomp:send(SSQueue, UpEvent, []),
     {noreply, State};
 
@@ -115,7 +115,7 @@ handle_info(_Message, State) ->
 
 terminate(_Reason, #state{ss_queue = SSQueue, host = Host}) ->
     % Remove mapping for process
-    DownEvent = ?record_to_json(hostevent, #hostevent{host = Host, event = down}),
+    DownEvent = handyterm:term_to_string(#hostevent{host = Host, event = down}),
     gen_stomp:send(SSQueue, DownEvent, []),
     rd_store:delete_by_pid(self()),
     ok.
