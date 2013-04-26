@@ -23,6 +23,9 @@ relclean:
 clean: distclean
 	./rebar clean
 
+appclean:
+	rm -f ebin/*.beam
+
 distclean:
 	./rebar delete-deps
 
