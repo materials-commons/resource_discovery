@@ -16,9 +16,11 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
             terminate/2, code_change/3]).
 
--export([convertrecord/1]).
+-export([start_link/0]).
 
 -define(SERVER, ?MODULE).
+
+-define(DEFAULT_WAIT, (2*60*1000)). % Wait 2 minutes
 
 -record(state,
     {
@@ -29,8 +31,9 @@
         ss_queue = "/topic/rd_host_startup_shutdown" :: string()
     }).
 
-convertrecord(R) ->
-    ?record_to_json(hostevent, R).
+start_link() ->
+    rd_store:init(),
+    start_link("localhost", 61613, "guest", "guest", "141.212.111.19", []).
 
 %% ===================================================================
 %% API
@@ -95,20 +98,18 @@ handle_cast({add_resource, Resource},
 %% @doc Add resources that were specified in startup.
 handle_cast({startup, Resources},
                 #state{rd = Rd, ss_queue = SSQueue, host = Host} = State) ->
-    io:format("rd_host_server startup~n"),
     add_resources(Rd, Resources),
     UpEvent = handyterm:term_to_string(#hostevent{host = Host, event = up}),
-    gen_stomp:send(SSQueue, UpEvent, []),
-    %% Wait two minutes before broadcasting our resources
-    TimeToWait = 2 * 2 * 1000,
-    {noreply, State, 2000};
+    %% Wait before broadcasting our resources
+    TimeToWait = handyconfig:get_env_default(resource_discovery, rd_host_wait, ?DEFAULT_WAIT),
+    gen_stomp:send(SSQueue, UpEvent, [], TimeToWait),
+    {noreply, State, TimeToWait};
 
-%% @doc Stop the server.
+%% TimeToWait Stop the server.
 handle_cast(stop, State) ->
     {stop, normal, State}.
 
 handle_info(timeout, #state{broadcast_queue = BroadcastQueue, rd = Rd} = State) ->
-    io:format("rd_host_server handle_info timeout~n",[]),
     broadcast_resources(BroadcastQueue, Rd),
     {noreply, State};
 
