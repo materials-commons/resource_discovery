@@ -35,8 +35,10 @@ handle_cast(stop, State) ->
     {stop, normal, State}.
 
 handle_info({tcp, Socket, RawData}, State) ->
-    handle_request(Socket, RawData),
-    {stop, normal, State};
+	case handle_request(Socket, RawData) of
+		{ok, _} -> {stop, normal, State};
+		{error, Reason} -> {stop, {error, Reason}, State}
+	end;
 handle_info({tcp_closed, _Socket}, State) ->
     {stop, normal, State};
 handle_info(timeout, #state{lsock = LSock} = State)->
@@ -58,7 +60,7 @@ handle_request(Socket, "PING") ->
     gen_tcp:send(Socket, "PONG");
 handle_request(_Socket, _Request) ->
     %% Error log an unknown command.
-    ok.
+    {error, unknown_command}.
 
 
 

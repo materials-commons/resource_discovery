@@ -11,7 +11,7 @@
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
-            terminate/2, code_change/3]).
+		 terminate/2, code_change/3]).
 
 -record(state, {lsock}).
 
@@ -44,7 +44,7 @@ handle_info(timeout, #state{lsock = LSock} = State)->
     rd_host_request_sup:start_child(),
     {noreply, State}.
 
- terminate(_Reason, _State) ->
+terminate(_Reason, _State) ->
     ok.
 
 code_change(_OldVsn, State, _Extra) ->

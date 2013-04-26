@@ -23,7 +23,7 @@ start_link(StompHost, StompPort, StompUser, StompPassword) ->
 %% ===================================================================
 
 %% @private
-init([_StompHost, _StompPort, _StompUser, _StompPassword]) ->
+init([]) ->
     ok.
 
 handle_call(_Msg, _From, State) ->

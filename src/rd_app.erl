@@ -60,9 +60,7 @@ get_host_external_address() ->
     Address.
 
 start_children() ->
-    Children = [
-        rd_pong_sup
-    ],
+    Children = [rd_pong_sup, rd_host_request_sup],
     lists:foreach(
         fun (Module) ->
             {ok, _Pid} = Module:start_child()
