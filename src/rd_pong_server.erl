@@ -36,7 +36,7 @@ handle_cast(stop, State) ->
 
 handle_info({tcp, Socket, RawData}, State) ->
 	case handle_request(Socket, RawData) of
-		{ok, _} -> {stop, normal, State};
+		ok -> {stop, normal, State};
 		{error, Reason} -> {stop, {error, Reason}, State}
 	end;
 handle_info({tcp_closed, _Socket}, State) ->
