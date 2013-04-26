@@ -17,12 +17,8 @@ start() ->
 
 start(_StartType, _StartArgs) ->
     rd_store:init(),
-    ConfigEntries = get_app_config_entries(),
-    {ping_pong_port, Port} = lists:keyfind(ping_pong_port, 1, ConfigEntries),
-    {ok, LSock} = gen_tcp:listen(Port, [{active, true}]),
-    ExternalAddress = get_host_external_address(),
-    NewConfigEntries = ConfigEntries ++ [{lsock, LSock}, {hostip, ExternalAddress}],
-    case rd_core_sup:start_link(NewConfigEntries) of
+    SupervisorArguments = construct_supervisor_arguments_list(),
+    case rd_core_sup:start_link(SupervisorArguments) of
         {ok, Pid} ->
             start_children(),
             {ok, Pid};
@@ -36,28 +32,30 @@ stop(_State) ->
 %% ===================================================================
 %% Local
 %% ===================================================================
+
+construct_supervisor_arguments_list() ->
+    ConfigEntries = get_app_config_entries(),
+    ListenSocks = get_listen_socket_entries(ConfigEntries),
+    HostExternalAddressEntry = get_host_external_address(),
+    ConfigEntries ++ ListenSocks ++ [HostExternalAddressEntry].
+
 get_app_config_entries() ->
-    Entries = [
-        stomp_host,
-        stomp_port,
-        stomp_user,
-        stomp_password,
-        rd_lease,
-        ping_pong_port,
-        ping_heartbeat
-    ],
-    lists:map(fun entry_2_kv/1, Entries).
+    AllEntries = application:get_all_env(resource_discovery),
+    lists:filter(fun({Key, _}) -> Key =/= included_applications end, AllEntries).
 
-entry_2_kv(What) ->
-    {ok, Value} = rd_get_env(What),
-    {What, Value}.
+get_listen_socket_entries(ConfigEntries) ->
+    {ping_pong_port, PingPongPort} = lists:keyfind(ping_pong_port, 1, ConfigEntries),
+    {ok, LPongSock} = sock_listen(PingPongPort),
 
-rd_get_env(What) ->
-    application:get_env(resource_discovery, What).
+    {rd_request_handler_port, ReqHandlerPort} =
+            lists:keyfind(rd_request_handler_port, 1, ConfigEntries),
+    {ok, LReqHandlerSock} = sock_listen(ReqHandlerPort),
+
+    [{lsock_pong, LPongSock}, {lsock_rh, LReqHandlerSock}].
 
 get_host_external_address() ->
     {ok, Address} = handynet:get_address(handynet:get_external_addrs(), 1),
-    Address.
+    {hostip, Address}.
 
 start_children() ->
     Children = [rd_pong_sup, rd_host_request_sup],
@@ -65,3 +63,7 @@ start_children() ->
         fun (Module) ->
             {ok, _Pid} = Module:start_child()
         end, Children).
+
+sock_listen(Port) ->
+    gen_tcp:listen(Port, [{active, true}, {reuseaddr, true}]).
+
