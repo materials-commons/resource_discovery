@@ -53,12 +53,12 @@
 
 -record(state,
     {
-        rd,
-        host :: string(),
-        command_queue :: string(),
-        broadcast_queue :: string(),
-        lease_time :: seconds(),
-        start_time :: seconds()
+        rd :: rd_resource_db::descriptor(), % descriptor to resource_db
+        host :: string(), % Host we are monitoring.
+        command_queue :: string(), % Command Queue to send requests on.
+        broadcast_queue :: string(), % Broadcast Queue to listen on.
+        lease_time :: seconds(), % How long before refresh
+        start_time :: seconds() % Used to determine timeout
     }).
 
 %% ===================================================================
@@ -69,6 +69,7 @@
 start_link(StompHost, Port, Username, Password, LeaseTime, ResourceHost) ->
     start_link(StompHost, Port, Username, Password, LeaseTime, ResourceHost, []).
 
+%% @doc starts the server
 start_link(StompHost, Port, Username, Password, LeaseTime, ResourceHost, Resources) ->
     HostBroadcastTopic = string:concat("/topic/rd_", ResourceHost),
     HostCommandQueue = string:concat("/queue/rd_command_", ResourceHost),
@@ -76,18 +77,28 @@ start_link(StompHost, Port, Username, Password, LeaseTime, ResourceHost, Resourc
         [{HostBroadcastTopic, []}],
         [HostBroadcastTopic, HostCommandQueue, Resources, LeaseTime]).
 
+%% @doc starts server by asking supervisor to start us.
+-spec start(string()) -> {ok, pid()}.
 start(Host) ->
     start(Host, []).
 
+%% @doc starts server by asking supervisor to start us.
+-spec start(string(), [resources()] | []) -> {ok, pid()}.
 start(Host, Resources) ->
     rd_resource_sup:start_child(Host, Resources).
 
+%% @doc Return known resources
+-spec fetch(pid()) -> [resources()] | [].
 fetch(Pid) ->
     gen_server:call(Pid, fetch).
 
+%% @doc stop server.
+-spec stop(pid()) -> ok.
 stop(Pid) ->
     gen_server:cast(Pid, stop).
 
+%% @doc Force server to resync its resource view.
+-spec update(pid()) -> ok.
 update(Pid) ->
     gen_server:cast(Pid, update).
 
