@@ -40,6 +40,7 @@
 start_link(LSock) ->
     supervisor:start_link({local, ?SERVER}, ?MODULE, [LSock]).
 
+%% @doc Starts a new rd_host_request_handler.
 start_child() ->
     supervisor:start_child(?SERVER, []).
 
