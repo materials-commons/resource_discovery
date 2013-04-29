@@ -36,7 +36,8 @@
 %% API functions
 %% ===================================================================
 
-%% @doc starts the supervisor.
+%% @doc Starts the supervisor.
+-spec start_link([tuple(atom(), string() | port() | integer())]) -> {ok, pid()}.
 start_link(Arguments) ->
     supervisor:start_link({local, ?SERVER}, ?MODULE, Arguments).
 
@@ -70,6 +71,12 @@ init(Arguments) ->
     ],
     {ok, { {one_for_one, 5, 10}, Supervisors } }.
 
+%% ===================================================================
+%% Local functions
+%% ===================================================================
+
+%% Look up value in list and return it. This is a simple cover for
+%% lists:keyfind() that just returns the value, and not the key/value.
 get_value(List, Key) ->
     {Key, Value} = lists:keyfind(Key, 1, List),
     Value.
