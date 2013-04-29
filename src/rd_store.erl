@@ -35,6 +35,7 @@ insert(Host, Pid) ->
     ets:insert(?TABLE, {Host, Pid}).
 
 %% @doc Lookup the Pid for the Host resource
+-spec lookup(string()) -> {ok, pid()} | {error, not_found}.
 lookup(Host) ->
     case ets:lookup(?TABLE, Host) of
         [{Host, Pid}] -> {ok, Pid};
@@ -42,14 +43,17 @@ lookup(Host) ->
     end.
 
 %% @doc Returns all entries.
+-spec all() -> [tuple(string(), pid())] | [].
 all() ->
     [Entry || [Entry] <- ets:match(?TABLE, '$1')].
 
 
 %% @doc Remove the host to pid mapping (by pid)
+-spec delete_by_pid(pid()) -> true.
 delete_by_pid(Pid) ->
     ets:match_delete(?TABLE, {'_', Pid}).
 
 %% @doc Remove the host to pid mapping (by host)
+-spec delete_by_host(string()) -> true.
 delete_by_host(Host) ->
     ets:match_delete(?TABLE, {Host, '_'}).
