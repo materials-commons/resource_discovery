@@ -32,24 +32,18 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
             terminate/2, code_change/3]).
 
--export([start_link/0]).
-
 -define(SERVER, ?MODULE).
 
 -define(DEFAULT_WAIT, (2*60*1000)). % Wait 2 minutes
 
 -record(state,
     {
-        rd,
-        host :: string(),
-        command_queue :: string(),
-        broadcast_queue :: string(),
-        ss_queue :: string()
+        rd, % descriptor to resource_db
+        host :: string(), % Our host
+        command_queue :: string(), % Command queue to listen for requests on.
+        broadcast_queue :: string(), % Queue to broadcast changes on.
+        ss_queue :: string() %% Startup/Shutdown queue.
     }).
-
-start_link() ->
-    rd_store:init(),
-    start_link("localhost", 61613, "guest", "guest", "141.212.111.19", []).
 
 %% ===================================================================
 %% API
@@ -63,18 +57,28 @@ start_link(StompHost, Port, Username, Password, ResourceHost, Resources) ->
         [{HostCommandQueue, []}],
         [HostBroadcastTopic, HostCommandQueue, ResourceHost, Resources]).
 
+%% @doc Fetch resources for this server.
+-spec fetch() -> [resource()].
 fetch() ->
     gen_stomp:call(?SERVER, fetch).
 
+%% @doc Stops server.
+-spec stop() -> ok.
 stop() ->
     gen_stomp:cast(?SERVER, stop).
 
+%% @doc You can also stop this server using its pid.
+-spec stop(pid()) -> ok.
 stop(Pid) ->
     gen_stomp:cast(Pid, stop).
 
+%% @doc Delete a resource.
+-spec delete_resource(resource()) -> ok.
 delete_resource(#resource{} = Resource) ->
     gen_stomp:cast(?SERVER, {delete_resource, Resource}).
 
+%% @doc Add a resource.
+-spec add_resource(resource()) -> ok.
 add_resource(#resource{} = Resource) ->
     gen_stomp:cast(?SERVER, {add_resource, Resource}).
 
