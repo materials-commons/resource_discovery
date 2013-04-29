@@ -7,6 +7,11 @@
 
 -include("resource.hrl").
 
+%% @doc Add resources for host.
+%%
+%% If the host doesn't exist then create the host and then add
+%% the resources.
+-spec insert(string(), resource()) -> ok.
 insert(Host, #resource{} = Resource) ->
     case rd_store:lookup(Host) of
         {ok, Pid} ->
@@ -16,15 +21,20 @@ insert(Host, #resource{} = Resource) ->
             rd_store:insert(Host, Pid)
     end.
 
+%% @doc Lookup the resources for a host.
+-spec lookup(string()) -> {ok, [resource()]} | {error, not_found}.
 lookup(Host) ->
     try
         {ok, Pid} = rd_store:lookup(Host),
-        {ok, _Resources} = rd_resource_server:fetch(Pid)
+        {ok, Resources} = rd_resource_server:fetch(Pid),
+        {ok, Resources}
     catch
         _Class:_Exception ->
             {error, not_found}
     end.
 
+%% @doc Creates a new host for holding resources if it doesn't already exist.
+-spec create(string()) -> ok | {error, exists}.
 create(Host) ->
     case rd_store:lookup(Host) of
         {error, not_found} ->
@@ -35,7 +45,9 @@ create(Host) ->
             {error, exists}
     end.
 
-delete(Host) ->
+%% @doc deletes a host and all resources. If host doesn't exist just ignores it.
+-spec delete(string()) -> ok.
+delete(Host) -> 
     case rd_store:lookup(Host) of
         {ok, Pid} -> rd_resource_server:stop(Pid);
         {error, _Reason} -> ok
