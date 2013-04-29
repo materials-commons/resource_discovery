@@ -14,8 +14,8 @@
 -include_lib("handyman/include/jsonerl.hrl").
 
 %% API
--export([start_link/6, start_link/7, start/1, start/2, start/3,
-            fetch/1, update/1, stop/1]).
+-export([start_link/6, start_link/7, start/1, start/2, fetch/1,
+            update/1, stop/1]).
 
 
 %% gen_stomp callbacks
@@ -51,16 +51,11 @@ start_link(StompHost, Port, Username, Password, LeaseTime, ResourceHost, Resourc
         [{HostBroadcastTopic, []}],
         [HostBroadcastTopic, HostCommandQueue, Resources, LeaseTime]).
 
-start(Host, LeaseTime) when is_integer(LeaseTime) ->
-    rd_sup:start_child(Host, [], LeaseTime);
-start(Host, Resources) when is_list(Resources) ->
-    rd_sup:start_child(Host, Resources, ?DEFAULT_LEASE_TIME).
-
 start(Host) ->
-    start(Host, ?DEFAULT_LEASE_TIME).
+    start(Host, []).
 
-start(Host, Resources, LeaseTime) ->
-    rd_sup:start_child(Host, Resources, LeaseTime).
+start(Host, Resources) ->
+    rd_resource_sup:start_child(Host, Resources).
 
 fetch(Pid) ->
     gen_server:call(Pid, fetch).
