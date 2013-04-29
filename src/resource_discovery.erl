@@ -1,7 +1,23 @@
 %%% ===================================================================
 %%% @doc Client API for resource discovery. Services local to a node
-%%% can use this API to discover and add resources for different hosts.
+%%%      can use this API to discover and add resources for different hosts.
+%%%
+%%% Copyright (c) 2013, Regents of the University of Michigan.
+%%% All rights reserved.
+%%%
+%%% Permission to use, copy, modify, and/or distribute this software for any
+%%% purpose with or without fee is hereby granted, provided that the above
+%%% copyright notice and this permission notice appear in all copies.
+%%%
+%%% THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+%%% WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+%%% MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+%%% ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+%%% WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+%%% ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+%%% OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 %%% ===================================================================
+
 -module(resource_discovery).
 -export([insert/2, lookup/1, delete/1, create/1]).
 
@@ -47,7 +63,7 @@ create(Host) ->
 
 %% @doc deletes a host and all resources. If host doesn't exist just ignores it.
 -spec delete(string()) -> ok.
-delete(Host) -> 
+delete(Host) ->
     case rd_store:lookup(Host) of
         {ok, Pid} -> rd_resource_server:stop(Pid);
         {error, _Reason} -> ok

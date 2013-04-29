@@ -1,20 +1,44 @@
+%%% ===================================================================
+%%% @doc A resource discovery system with timeouts.
+%%%
+%%% Copyright (c) 2013, Regents of the University of Michigan.
+%%% All rights reserved.
+%%%
+%%% Permission to use, copy, modify, and/or distribute this software for any
+%%% purpose with or without fee is hereby granted, provided that the above
+%%% copyright notice and this permission notice appear in all copies.
+%%%
+%%% THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+%%% WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+%%% MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+%%% ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+%%% WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+%%% ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+%%% OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+%%% ===================================================================
+
 -module(rd_app).
 
 -behaviour(application).
 
 %% Application callbacks
--export([start/2, start/0, stop/1]).
+-export([start/2, stop/1]).
+
+%% API
+-export([start/0]).
 
 %% ===================================================================
 %% Application callbacks
 %% ===================================================================
 
+%% @doc Short cut to start application and all dependencies explicitly.
 start() ->
     application:start(handyman),
     application:start(ossp_uuid),
     application:start(stomp_client),
     application:start(resource_discovery).
 
+%% @doc Application callback for starting app.
 start(_StartType, _StartArgs) ->
     rd_store:init(),
     SupervisorArguments = construct_supervisor_arguments_list(),
@@ -26,6 +50,7 @@ start(_StartType, _StartArgs) ->
             {error, Other}
     end.
 
+%% @doc Application callback called when stopping application.
 stop(_State) ->
     ok.
 
@@ -33,16 +58,22 @@ stop(_State) ->
 %% Local
 %% ===================================================================
 
+%% Creates a list of key value pairs that are the configuration
+%% entries that different supervisors need.
 construct_supervisor_arguments_list() ->
     ConfigEntries = get_app_config_entries(),
     ListenSocks = get_listen_socket_entries(ConfigEntries),
     HostExternalAddressEntry = get_host_external_address(),
     ConfigEntries ++ ListenSocks ++ [HostExternalAddressEntry].
 
+%% Get all the configuration entries for the resource_discovery application,
+%% filtering out included_applications (not used by us).
 get_app_config_entries() ->
     AllEntries = application:get_all_env(resource_discovery),
     lists:filter(fun({Key, _}) -> Key =/= included_applications end, AllEntries).
 
+%% Get sockets we are listening on and create key/value pairs for these socks.
+%% These are used by other servers in the application.
 get_listen_socket_entries(ConfigEntries) ->
     {ping_pong_port, PingPongPort} = lists:keyfind(ping_pong_port, 1, ConfigEntries),
     {ok, LPongSock} = sock_listen(PingPongPort),
@@ -53,10 +84,14 @@ get_listen_socket_entries(ConfigEntries) ->
 
     [{lsock_pong, LPongSock}, {lsock_rh, LReqHandlerSock}].
 
+%% Get the first external ip address for this host. Turn into key/value config
+%% entry for use later on.
 get_host_external_address() ->
     {ok, Address} = handynet:get_address(handynet:get_external_addrs(), 1),
     {hostip, Address}.
 
+%% Start child processes after their respective supervisors have started.
+%% These children are simple_one_for_one servers.
 start_children() ->
     Children = [rd_pong_sup, rd_host_request_sup],
     lists:foreach(
@@ -64,6 +99,7 @@ start_children() ->
             {ok, _Pid} = Module:start_child()
         end, Children).
 
+%% Consolidate how we call gen_tcp into a single place to make modifying easier.
 sock_listen(Port) ->
     gen_tcp:listen(Port, [{active, true}, {reuseaddr, true}]).
 
