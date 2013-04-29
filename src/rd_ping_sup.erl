@@ -3,7 +3,7 @@
 -behaviour(supervisor).
 
 %% API
--export([start_link/2]).
+-export([start_link/6]).
 
 %% Supervisor callbacks
 -export([init/1]).
@@ -18,8 +18,11 @@
 %% ===================================================================
 
 %% @doc starts the supervisor.
-start_link(PingHeartBeat, PingPongPort) ->
-    supervisor:start_link({local, ?SERVER}, ?MODULE, [PingHeartBeat, PingPongPort]).
+start_link(PingHeartBeat, PingPongPort, StompHost, StompPort,
+                StompUser, StompPassword) ->
+    supervisor:start_link({local, ?SERVER}, ?MODULE,
+        [PingHeartBeat, PingPongPort, StompHost, StompPort,
+            StompUser, StompPassword]).
 
 
 %% ===================================================================
@@ -27,6 +30,9 @@ start_link(PingHeartBeat, PingPongPort) ->
 %% ===================================================================
 
 %% @private
-init([PingHeartBeat, PingPongPort]) ->
+init([PingHeartBeat, PingPongPort, StompHost, StompPort,
+        StompUser, StompPassword]) ->
     RdPingServer = ?CHILD(rd_ping_server, [PingHeartBeat, PingPongPort]),
-    {ok, { {one_for_one, 5, 10}, [RdPingServer] } }.
+    RdNewHostMonitor = ?CHILD(rd_new_host_monitor, [StompHost, StompPort,
+                                StompUser, StompPassword]),
+    {ok, { {one_for_one, 5, 10}, [RdPingServer, RdNewHostMonitor] } }.
