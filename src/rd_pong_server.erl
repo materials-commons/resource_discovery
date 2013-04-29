@@ -34,6 +34,8 @@
 %% ===================================================================
 %% API
 %% ===================================================================
+
+%% @doc start server.
 start_link(LSock) ->
     gen_server:start_link(?MODULE, [LSock], []).
 
@@ -41,15 +43,22 @@ start_link(LSock) ->
 %% gen_server callbacks
 %% ===================================================================
 
+%% @private
 init([LSock]) ->
     {ok, #state{lsock = LSock}, 0}.
 
+
+%% @private
 handle_call(_Msg, _From, State) ->
     {reply, ok, State}.
 
+%% @private
 handle_cast(stop, State) ->
     {stop, normal, State}.
 
+%% @private
+%%
+%% Handle request from socket.
 handle_info({tcp, Socket, RawData}, State) ->
 	case handle_request(Socket, RawData) of
 		ok -> {stop, normal, State};
@@ -57,14 +66,17 @@ handle_info({tcp, Socket, RawData}, State) ->
 	end;
 handle_info({tcp_closed, _Socket}, State) ->
     {stop, normal, State};
+%% Handle expensive startup in timeout (socket accept and re-spawn)
 handle_info(timeout, #state{lsock = LSock} = State)->
     {ok, _Sock} = gen_tcp:accept(LSock),
     rd_pong_sup:start_child(),
     {noreply, State}.
 
- terminate(_Reason, _State) ->
+%% @private
+terminate(_Reason, _State) ->
     ok.
 
+%% @private
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
@@ -72,8 +84,10 @@ code_change(_OldVsn, State, _Extra) ->
 %% Local
 %% ===================================================================
 
+%% Received a PING send PONG response.
 handle_request(Socket, "PING") ->
     gen_tcp:send(Socket, "PONG");
+%% Unknown command on socket.
 handle_request(_Socket, _Request) ->
     %% Error log an unknown command.
     {error, unknown_command}.
