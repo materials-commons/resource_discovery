@@ -6,6 +6,7 @@
 -behaviour(gen_stomp).
 
 -include("resource.hrl").
+-include("rd.hrl").
 -include_lib("handyman/include/jsonerl.hrl").
 
 %% API
@@ -28,7 +29,7 @@
         host :: string(),
         command_queue :: string(),
         broadcast_queue :: string(),
-        ss_queue = "/topic/rd_host_startup_shutdown" :: string()
+        ss_queue :: string()
     }).
 
 start_link() ->
@@ -75,7 +76,8 @@ init([HostBroadcastTopic, HostCommandQueue, ResourceHost, Resources]) ->
     rd_store:insert(ResourceHost, self()),
 
     State = #state{ command_queue = HostCommandQueue, host = ResourceHost,
-                    broadcast_queue = HostBroadcastTopic, rd = Rd},
+                    broadcast_queue = HostBroadcastTopic, rd = Rd,
+                    ss_queue = ?SS_QUEUE},
 
     {ok, State}.
 
