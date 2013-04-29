@@ -40,6 +40,7 @@
 start_link(LSock) ->
     supervisor:start_link({local, ?SERVER}, ?MODULE, [LSock]).
 
+%% @doc start child process (rd_pong_server)
 start_child() ->
     supervisor:start_child(?SERVER, []).
 
