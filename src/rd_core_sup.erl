@@ -44,7 +44,7 @@ init(Arguments) ->
         ?CHILD(rd_host_sup, [StompHost, StompPort, StompUser,
                                 StompPassword, HostIpAddress, []]),
         ?CHILD(rd_monitor_sup, [PingHeartBeat, PingPongPort, StompHost,
-                                StompPort, StompUser, StompPassword]),
+                        StompPort, StompUser, StompPassword, HostIpAddress]),
         ?CHILD(rd_pong_sup, [LSockPong]),
         ?CHILD(rd_host_request_sup, [LSockRH])
     ],
