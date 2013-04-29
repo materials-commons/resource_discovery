@@ -43,7 +43,8 @@ init(Arguments) ->
                                     StompPassword, RdLease]),
         ?CHILD(rd_host_sup, [StompHost, StompPort, StompUser,
                                 StompPassword, HostIpAddress, []]),
-        ?CHILD(rd_ping_sup, [PingHeartBeat, PingPongPort]),
+        ?CHILD(rd_ping_sup, [PingHeartBeat, PingPongPort, StompHost,
+                                StompPort, StompUser, StompPassword]),
         ?CHILD(rd_pong_sup, [LSockPong]),
         ?CHILD(rd_host_request_sup, [LSockRH])
     ],
