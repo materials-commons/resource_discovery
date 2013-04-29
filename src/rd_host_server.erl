@@ -38,7 +38,7 @@
 
 -record(state,
     {
-        rd :: rd_resource_db::descriptor(), % descriptor to resource_db
+        rd :: rd_resource_db:descriptor(), % descriptor to resource_db
         host :: string(), % Our host
         command_queue :: string(), % Command queue to listen for requests on.
         broadcast_queue :: string(), % Queue to broadcast changes on.

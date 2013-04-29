@@ -53,7 +53,7 @@
 
 -record(state,
     {
-        rd :: rd_resource_db::descriptor(), % descriptor to resource_db
+        rd :: rd_resource_db:descriptor(), % descriptor to resource_db
         host :: string(), % Host we are monitoring.
         command_queue :: string(), % Command Queue to send requests on.
         broadcast_queue :: string(), % Broadcast Queue to listen on.
@@ -83,12 +83,12 @@ start(Host) ->
     start(Host, []).
 
 %% @doc starts server by asking supervisor to start us.
--spec start(string(), [resources()] | []) -> {ok, pid()}.
+-spec start(string(), [resource()] | []) -> {ok, pid()}.
 start(Host, Resources) ->
     rd_resource_sup:start_child(Host, Resources).
 
 %% @doc Return known resources
--spec fetch(pid()) -> [resources()] | [].
+-spec fetch(pid()) -> [resource()] | [].
 fetch(Pid) ->
     gen_server:call(Pid, fetch).
 

@@ -37,13 +37,16 @@
 %% API functions
 %% ===================================================================
 
+%% @doc start server
 start_link(StompHost, StompPort, StompUser, StompPassword, RdLease) ->
     supervisor:start_link({local, ?SERVER}, ?MODULE,
                 [StompHost, StompPort, StompUser, StompPassword, RdLease]).
 
+%% @doc start child
 start_child(Host, Resources) ->
     supervisor:start_child(?SERVER, [Host, Resources]).
 
+%% @doc start child
 start_child(Host) ->
     start_child(Host, []).
 
@@ -52,6 +55,7 @@ start_child(Host) ->
 %% Supervisor callbacks
 %% ===================================================================
 
+%% @private
 init([StompHost, StompPort, StompUser, StompPassword, RdLease]) ->
     RdServer = ?CHILD(rd_resource_server, worker,
             [StompHost, StompPort, StompUser, StompPassword, RdLease]),
