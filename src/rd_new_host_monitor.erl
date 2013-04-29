@@ -30,7 +30,9 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
             terminate/2, code_change/3]).
 
--record(state, {this_host}).
+-record(state, {
+        this_host :: string() % The host we are running on.
+    }).
 
 -define(SERVER, ?MODULE).
 
@@ -38,6 +40,9 @@
 %% API functions
 %% ===================================================================
 
+%% @doc Starts a new server, connecting to the specified STOMP server
+%%      listening on the broacast start/shutdown queue for events
+%%      to handle.
 start_link(StompHost, StompPort, StompUser, StompPassword, ThisHost) ->
     StartupShutdownQueue = ?SS_QUEUE,
     gen_stomp:start_link({local, ?SERVER}, ?MODULE, StompHost, StompPort,
@@ -51,9 +56,11 @@ start_link(StompHost, StompPort, StompUser, StompPassword, ThisHost) ->
 init([ThisHost]) ->
     {ok, #state{this_host = ThisHost}}.
 
+%% @private
 handle_call(_Msg, _From, State) ->
     {reply, ok, State}.
 
+%% @private
 handle_cast([{message, Message}, {queue, _Queue}],
         #state{this_host = ThisHost} = State)->
     handle_message(Message, ThisHost),
@@ -61,12 +68,15 @@ handle_cast([{message, Message}, {queue, _Queue}],
 handle_cast(_Message, State) ->
     {noreply, State}.
 
+%% @private
 handle_info(_Ignore, State) ->
     {noreply, State}.
 
+%% @private
 terminate(_Reason, _State) ->
     ok.
 
+%% @private
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
@@ -74,18 +84,24 @@ code_change(_OldVsn, State, _Extra) ->
 %% Local functions
 %% ===================================================================
 
+%% Handles messages from the startup/shutdown queue.
 handle_message([{type, "MESSAGE"}, {header, _Header}, {body, Body}], ThisHost) ->
     handle_event(handyterm:string_to_term(Body), ThisHost);
+%% Ignore messages that are not type {type, "MESSAGE"}
 handle_message(_Message, _ThisHost) ->
     ok.
 
+%% Handle host up
 handle_event(#hostevent{host = Host, event = up}, ThisHost) ->
     when_not_this_host(create, Host, ThisHost);
+%% Handle host down
 handle_event(#hostevent{host = Host, event = down}, ThisHost) ->
     when_not_this_host(delete, Host, ThisHost).
 
-when_not_this_host(Command, Host, ThisHost) ->
+%% Common code path: We don't do anything if the event is for our host,
+%% otherwise perform Method.
+when_not_this_host(Method, Host, ThisHost) ->
     case Host =:= ThisHost of
         true -> ok;
-        false -> resource_discovery:Command(Host)
+        false -> resource_discovery:Method(Host)
     end.
