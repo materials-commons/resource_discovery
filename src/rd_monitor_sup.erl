@@ -1,4 +1,4 @@
--module(rd_ping_sup).
+-module(rd_monitor_sup).
 
 -behaviour(supervisor).
 
