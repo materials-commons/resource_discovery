@@ -149,7 +149,8 @@ start_pinger({Host, Pid}, Port) ->
     start_pinger(Host, Pid, Port).
 
 %% Starts a pinger for the specified host on port. Pid is local process
-%% holding resources for the host.start_pinger(Host, Pid, Port) ->
+%% holding resources for the host.
+start_pinger(Host, Pid, Port) ->
     spawn(?MODULE, ping_host, [Host, Pid, Port]).
 
 %% Function we spawn. Tries to ping host. On anything but success we
