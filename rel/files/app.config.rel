@@ -1,0 +1,23 @@
+[
+ %% SASL config
+ {sasl, [
+         {sasl_error_logger, {file, "log/sasl-error.log"}},
+         {errlog_type, error},
+         {error_logger_mf_dir, "log/sasl"},      % Log directory
+         {error_logger_mf_maxbytes, 10485760},   % 10 MB max file size
+         {error_logger_mf_maxfiles, 5}           % 5 files max
+        ]},
+    {resource_discovery,
+        [
+            {ping_pong_port, 12233},
+            {ping_heartbeat, 3600},
+            {stomp_host, "materialscommons.org"},
+            {stomp_port, 61613},
+            {stomp_user, "guest"},
+            {stomp_password, "guest"},
+            {rd_lease, 86400},
+            {rd_request_handler_port, 11445}
+        ]
+    }
+].
+
