@@ -53,9 +53,11 @@
 start_link(StompHost, Port, Username, Password, ResourceHost, Resources) ->
     HostBroadcastTopic = string:concat("/topic/rd_", ResourceHost),
     HostCommandQueue = string:concat("/queue/rd_command_", ResourceHost),
+    ResourceRd = #resource{host = ResourceHost, name = "resource_discovery",
+                            type = "resource_discovery"},
     gen_stomp:start_link({local, ?SERVER}, ?MODULE, StompHost, Port, Username, Password,
         [{HostCommandQueue, []}],
-        [HostBroadcastTopic, HostCommandQueue, ResourceHost, Resources]).
+        [HostBroadcastTopic, HostCommandQueue, ResourceHost, [ResourceRd | Resources]]).
 
 %% @doc Fetch resources for this server.
 -spec fetch() -> [resource()].
