@@ -60,7 +60,8 @@ handle_cast(stop, State) ->
 %% @private
 %% Handles commands sent over the socket.
 handle_info({tcp, Socket, RawData}, State) ->
-    handle_request(Socket, RawData),
+    Request = handyterm:string_to_term(RawData),
+    handle_request(Socket, Request),
     {stop, normal, State};
 handle_info({tcp_closed, _Socket}, State) ->
     {stop, normal, State};
@@ -84,13 +85,14 @@ code_change(_OldVsn, State, _Extra) ->
 %% ===================================================================
 
 %% Send back all the resources for our local host.
-handle_request(Socket, <<"RESOURCES">>) ->
+handle_request(Socket, {resources, _Host}) ->
     Resources = gen_host_server:fetch(),
     ResourcesAsString = handyterm:term_to_string(Resources),
     gen_tcp:send(Socket, ResourcesAsString);
 %% Unknown command handler.
+handle_request(_Socket, {myresources, _Host, _Resources}) ->
+    ok;
 handle_request(_Socket, _Request) ->
-    %% Error log an unknown command.
     ok.
 
 

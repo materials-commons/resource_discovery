@@ -40,7 +40,7 @@
 
 %% API
 -export([start_link/6, start_link/7, start/1, start/2, fetch/1,
-            update/1, stop/1]).
+            update/1, add/2, stop/1]).
 
 
 %% gen_stomp callbacks
@@ -102,6 +102,11 @@ stop(Pid) ->
 update(Pid) ->
     gen_server:cast(Pid, update).
 
+%% @doc Add resources to server
+-spec add(pid(), [resource()]) -> ok.
+add(Pid, Resources) ->
+    gen_server:cast(Pid, {add, Resources}).
+
 
 %% ===================================================================
 %% gen_stomp callbacks
@@ -129,11 +134,19 @@ handle_call(fetch, _From,
     TimeLeft = lease:time_left(StartTime, LeaseTime),
     {reply, {ok, Resources}, State, TimeLeft}.
 
-%% @doc
+%% @doc Update view of resources for this host.
 handle_cast(update,
         #state{lease_time = LeaseTime, start_time = StartTime,
                 command_queue = CommandQueue} = State) ->
     gen_stomp:send(CommandQueue, "RESOURCES", []),
+    TimeLeft = lease:time_left(StartTime, LeaseTime),
+    {noreply, State, TimeLeft};
+
+%% @doc Add resources for this host.
+handle_cast({add, Resources},
+        #state{lease_time = LeaseTime, start_time = StartTime,
+                rd = Rd} = State) ->
+    add_resources(Rd, Resources),
     TimeLeft = lease:time_left(StartTime, LeaseTime),
     {noreply, State, TimeLeft};
 

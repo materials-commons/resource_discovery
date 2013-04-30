@@ -25,17 +25,19 @@
 
 %% @doc Add resources for host.
 %%
-%% If the host doesn't exist then create the host and then add
+%% If the host doesn't exist then create the host otherwise add
 %% the resources.
--spec insert(string(), resource()) -> ok.
-insert(Host, #resource{} = Resource) ->
+-spec insert(string(), resource() | [resource()]) -> ok.
+insert(Host, Resources) when is_list(Resources) ->
     case rd_store:lookup(Host) of
         {ok, Pid} ->
-            rd_resource_server:add_resource(Pid, Resource);
+            rd_resource_server:add_resources(Pid, Resources);
         {error, _} ->
-            {ok, Pid} = rd_resource_server:start(Host, [Resource]),
+            {ok, Pid} = rd_resource_server:start(Host, Resources),
             rd_store:insert(Host, Pid)
-    end.
+    end;
+insert(Host, #resource{} = Resource) ->
+    insert(Host, [Resource]).
 
 %% @doc Lookup the resources for a host.
 -spec lookup(string()) -> {ok, [resource()]} | {error, not_found}.
