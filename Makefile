@@ -15,7 +15,15 @@ deps:
 generate:
 	./rebar generate
 
-rel: deps compile generate
+rel: rel-config deps compile generate
+
+devrel: dev-rel-config deps compile generate
+
+rel-config:
+	cp rel/files/app.config.rel rel/files/app.config
+
+dev-rel-config:
+	cp rel/files/app.config.dev rel/files/app.config
 
 relclean:
 	rm -rf rel/resource_discovery
