@@ -84,7 +84,7 @@ code_change(_OldVsn, State, _Extra) ->
 %% ===================================================================
 
 %% Send back all the resources for our local host.
-handle_request(Socket, "RESOURCES") ->
+handle_request(Socket, <<"RESOURCES">>) ->
     Resources = gen_host_server:fetch(),
     ResourcesAsString = handyterm:term_to_string(Resources),
     gen_tcp:send(Socket, ResourcesAsString);
