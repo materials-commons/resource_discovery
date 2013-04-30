@@ -75,14 +75,18 @@ get_app_config_entries() ->
 %% Get sockets we are listening on and create key/value pairs for these socks.
 %% These are used by other servers in the application.
 get_listen_socket_entries(ConfigEntries) ->
-    {ping_pong_port, PingPongPort} = lists:keyfind(ping_pong_port, 1, ConfigEntries),
-    {ok, LPongSock} = sock_listen(PingPongPort),
+    PongSockKV = socket_kv_for_port_entry(ping_pong_port, lsock_pong,
+                                ConfigEntries),
 
-    {rd_request_handler_port, ReqHandlerPort} =
-            lists:keyfind(rd_request_handler_port, 1, ConfigEntries),
-    {ok, LReqHandlerSock} = sock_listen(ReqHandlerPort),
+    ReqHandlerSockKV = socket_kv_for_port_entry(rd_request_handler_port,
+                                lsock_rh, ConfigEntries),
+    [PongSockKV, ReqHandlerSockKV].
 
-    [{lsock_pong, LPongSock}, {lsock_rh, LReqHandlerSock}].
+%% Find port for key, open socket on port, return key-value for socket
+socket_kv_for_port_entry(PortEntryKey, SocketKeyToUse, ConfigEntries) ->
+    {PortEntryKey, Port} = lists:keyfind(PortEntryKey, 1, ConfigEntries),
+    {ok, Socket} = socket_listen(Port),
+    {SocketKeyToUse, Socket}.
 
 %% Get the first external ip address for this host. Turn into key/value config
 %% entry for use later on.
@@ -100,6 +104,6 @@ start_children() ->
         end, Children).
 
 %% Consolidate how we call gen_tcp into a single place to make modifying easier.
-sock_listen(Port) ->
+socket_listen(Port) ->
     gen_tcp:listen(Port, [{active, true}, {reuseaddr, true}]).
 
