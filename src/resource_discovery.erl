@@ -19,7 +19,7 @@
 %%% ===================================================================
 
 -module(resource_discovery).
--export([insert/2, lookup/1, delete/1, create/1]).
+-export([insert/2, lookup/1, delete/1, create/1, all/0]).
 
 -include("resource.hrl").
 
@@ -68,3 +68,12 @@ delete(Host) ->
         {ok, Pid} -> rd_resource_server:stop(Pid);
         {error, _Reason} -> ok
     end.
+
+%% @doc Get a list of host resources in the form [{Host, [resources]}].
+-spec all() -> [{string(), [resource()] | []}] | [].
+all() ->
+    lists:map(
+        fun({Host, Pid}) ->
+            {ok, HostResources} = rd_resource_server:fetch(Pid),
+            {Host, HostResources}
+        end, rd_store:all()).
