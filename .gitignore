@@ -7,3 +7,4 @@ ebin
 *.swp
 rel/resource_discovery
 *.dump
+rel/files/app.config
