@@ -11,7 +11,7 @@
         [
             {ping_pong_port, 12233},
             {ping_heartbeat, 3600},
-            {stomp_host, "localhost"},
+            {stomp_host, "prisms.eecs.umich.edu"},
             {stomp_port, 61613},
             {stomp_user, "guest"},
             {stomp_password, "guest"},
