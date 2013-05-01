@@ -26,7 +26,9 @@
 
 % API
 -export([new/0, insert/2, delete_by_name/2, delete_by_type/2,
-            delete_all/1, find_by_name/2, find_by_type/2, all/1]).
+            delete_all/1, find_by_name/2, find_by_type/2, all/1,
+            add_resources/2, delete_resources_by_name/2,
+            update_resources/2]).
 
 %% @doc Initializes database
 -spec new() -> descriptor().
@@ -67,3 +69,28 @@ find_by_type(Descriptor, Type) ->
 -spec all(descriptor()) -> [resource()] | [].
 all(Descriptor) ->
     ets:match_object(Descriptor, #resource{_ = '_'}).
+
+%% @doc Add a list of resources
+-spec add_resources(descriptor(), [resource()] | []) -> ok.
+add_resources(Rd, Resources) ->
+    lists:foreach(
+        fun (Resource) ->
+            insert(Rd, Resource)
+        end, Resources).
+
+%% @doc Delete a list of resources by name
+-spec delete_resources_by_name(descriptor(), [resource()] | []) -> ok.
+delete_resources_by_name(Rd, Resources) ->
+    lists:foreach(
+        fun(#resource{name = Name}) ->
+            delete_by_name(Rd, Name)
+        end, Resources).
+
+%% @doc Update a list of resources by deleting by name and then re-inserting.
+-spec update_resources(descriptor(), [resource()] | []) -> ok.
+update_resources(Rd, Resources) ->
+    lists:foreach(
+        fun(#resource{name = Name} = Resource) ->
+            delete_by_name(Rd, Name),
+            insert(Rd, Resource)
+        end, Resources).
