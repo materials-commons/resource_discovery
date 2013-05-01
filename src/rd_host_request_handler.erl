@@ -94,6 +94,14 @@ handle_request(Socket, {resources, _Host}) ->
 handle_request(_Socket, {myresources, Host, Resources}) ->
     resource_discovery:insert(Host, Resources);
 
+%% Delete resources we are tracking
+handle_request(_Socket, {delete_resources, Host, Resources}) ->
+    resource_discovery:delete_resources_for(Host, Resources);
+
+%% Update resources we are tracking
+handle_request(_Socket, {update_resources, Host, Resources}) ->
+    resource_discovery:update_resources_for(Host, Resources);
+
 %% Unknown command handler.
 handle_request(_Socket, _Request) ->
     ok.
