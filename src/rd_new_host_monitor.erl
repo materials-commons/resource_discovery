@@ -93,15 +93,17 @@ handle_message(_Message, _ThisHost) ->
 
 %% Handle host up
 handle_event(#hostevent{host = Host, event = up}, ThisHost) ->
-    when_not_this_host(create, Host, ThisHost);
-%% Handle host down
-handle_event(#hostevent{host = Host, event = down}, ThisHost) ->
-    when_not_this_host(delete, Host, ThisHost).
-
-%% Common code path: We don't do anything if the event is for our host,
-%% otherwise perform Method.
-when_not_this_host(Method, Host, ThisHost) ->
     case Host =:= ThisHost of
         true -> ok;
-        false -> resource_discovery:Method(Host)
+        false ->
+            resource_discovery:create(Host),
+            Resources = resource_discovery:lookup(ThisHost),
+            rd_host_request:send_resources(Host, ThisHost, Resources)
+    end;
+
+%% Handle host down
+handle_event(#hostevent{host = Host, event = down}, ThisHost) ->
+    case Host =:= ThisHost of
+        true -> ok;
+        false -> resource_discovery:delete(Host)
     end.
