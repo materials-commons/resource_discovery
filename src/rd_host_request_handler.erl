@@ -91,8 +91,8 @@ handle_request(Socket, {resources, _Host}) ->
     gen_tcp:send(Socket, ResourcesAsString);
 
 %% Receive resources from host
-handle_request(_Socket, {myresources, _Host, _Resources}) ->
-    ok;
+handle_request(_Socket, {myresources, Host, Resources}) ->
+    resource_discovery:insert(Host, Resources);
 
 %% Unknown command handler.
 handle_request(_Socket, _Request) ->

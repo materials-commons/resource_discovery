@@ -19,11 +19,11 @@
 %%% ===================================================================
 
 -module(rd_host_request).
--export([request_resources/2, send_resources/3]).
+-export([request_resources/1, send_resources/3]).
 
-request_resources(Host, MyHost) ->
+request_resources(Host) ->
     Socket = open_connection_to_handler(Host),
-    send(Socket, {resources, MyHost}),
+    send(Socket, resources),
     Resources = recv(Socket),
     gen_tcp:close(Socket),
     Resources.
