@@ -19,18 +19,31 @@
 %%% ===================================================================
 
 -module(rd_host_request).
--export([request_resources/1, send_resources/3]).
+-export([request_resources/1, send_resources/3,
+            delete_resources/3, update_resources/3]).
 
 request_resources(Host) ->
-    Socket = open_connection_to_handler(Host),
-    send(Socket, resources),
+    Socket = send_message(Host, resources),
     Resources = recv(Socket),
     gen_tcp:close(Socket),
     Resources.
 
 send_resources(Host, MyHost, MyResources) ->
+    send_message_and_close(Host, {myresources, MyHost, MyResources}).
+
+delete_resources(Host, MyHost, Resources) ->
+    send_message_and_close(Host, {delete_resources, MyHost, Resources}).
+
+update_resources(Host, MyHost, Resources) ->
+    send_message_and_close(Host, {update_resources, MyHost, Resources}).
+
+send_message(Host, Message) ->
     Socket = open_connection_to_handler(Host),
-    send(Socket, {myresources, MyHost, MyResources}),
+    send(Socket, Message),
+    Socket.
+
+send_message_and_close(Host, Message) ->
+    Socket = send_message(Host, Message),
     gen_tcp:close(Socket).
 
 open_connection_to_handler(Host) ->
