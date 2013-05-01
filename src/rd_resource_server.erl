@@ -33,19 +33,21 @@
 %%% ===================================================================
 
 -module(rd_resource_server).
--behaviour(gen_stomp).
+-behaviour(gen_server).
 
 -include("resource.hrl").
--include_lib("handyman/include/jsonerl.hrl").
 
 %% API
--export([start_link/6, start_link/7, start/1, start/2, fetch/1,
+-export([start_link/2, start_link/3, start/1, start/2, fetch/1,
             update/1, add/2, stop/1]).
 
 
-%% gen_stomp callbacks
+%% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
             code_change/3]).
+
+%% spawn export
+-export([get_resources/1]).
 
 -define(DEFAULT_LEASE_TIME, (60 * 60 * 24)). % 1 Day by DEFAULT_LEASE_TIME
 
@@ -55,8 +57,6 @@
     {
         rd :: rd_resource_db:descriptor(), % descriptor to resource_db
         host :: string(), % Host we are monitoring.
-        command_queue :: string(), % Command Queue to send requests on.
-        broadcast_queue :: string(), % Broadcast Queue to listen on.
         lease_time :: seconds(), % How long before refresh
         start_time :: seconds() % Used to determine timeout
     }).
@@ -66,16 +66,12 @@
 %% ===================================================================
 
 %% @doc start the server
-start_link(StompHost, Port, Username, Password, LeaseTime, ResourceHost) ->
-    start_link(StompHost, Port, Username, Password, LeaseTime, ResourceHost, []).
+start_link(LeaseTime, Host) ->
+    start_link(LeaseTime, Host, []).
 
 %% @doc starts the server
-start_link(StompHost, Port, Username, Password, LeaseTime, ResourceHost, Resources) ->
-    HostBroadcastTopic = string:concat("/topic/rd_", ResourceHost),
-    HostCommandQueue = string:concat("/queue/rd_command_", ResourceHost),
-    gen_stomp:start_link(?MODULE, StompHost, Port, Username, Password,
-        [{HostBroadcastTopic, []}],
-        [HostBroadcastTopic, HostCommandQueue, Resources, LeaseTime]).
+start_link(LeaseTime, Host, Resources) ->
+    gen_server:start_link(?MODULE, [LeaseTime, Host, Resources], []).
 
 %% @doc starts server by asking supervisor to start us.
 -spec start(string()) -> {ok, pid()}.
@@ -109,11 +105,13 @@ add(Pid, Resources) ->
 
 
 %% ===================================================================
-%% gen_stomp callbacks
+%% gen_server callbacks
 %% ===================================================================
 
 %% @doc No resources specified, need to query host for them.
-init([HostBroadcastTopic, HostCommandQueue, Resources, LeaseTime]) ->
+init([LeaseTime, Host, Resources]) ->
+    process_flag(trap_exit, true),
+
     Now = lease:seconds_now(),
     Rd = rd_resource_db:new(),
 
@@ -121,8 +119,7 @@ init([HostBroadcastTopic, HostCommandQueue, Resources, LeaseTime]) ->
     gen_server:cast(self(), {startup, Resources}),
 
     State = #state{lease_time = LeaseTime, start_time = Now,
-                    command_queue = HostCommandQueue,
-                    broadcast_queue = HostBroadcastTopic, rd = Rd},
+                    rd = Rd, host = Host},
     TimeLeft = lease:time_left(Now, LeaseTime),
     {ok, State, TimeLeft}.
 
@@ -137,8 +134,8 @@ handle_call(fetch, _From,
 %% @doc Update view of resources for this host.
 handle_cast(update,
         #state{lease_time = LeaseTime, start_time = StartTime,
-                command_queue = CommandQueue} = State) ->
-    gen_stomp:send(CommandQueue, "RESOURCES", []),
+                host = Host} = State) ->
+    start_resource_request(Host),
     TimeLeft = lease:time_left(StartTime, LeaseTime),
     {noreply, State, TimeLeft};
 
@@ -150,18 +147,11 @@ handle_cast({add, Resources},
     TimeLeft = lease:time_left(StartTime, LeaseTime),
     {noreply, State, TimeLeft};
 
-handle_cast([{message, Message}, {queue, _Queue}],
-        #state{start_time = StartTime, lease_time = LeaseTime, rd = Rd} = State) ->
-    handle_message(Rd, Message),
-    TimeLeft = lease:time_left(StartTime, LeaseTime),
-    {noreply, State, TimeLeft};
-
 %% @doc Complete startup when no resources were given by asking for
 %% for the resources from the server.
-handle_cast({startup, []}, #state{start_time = StartTime,
-                                lease_time = LeaseTime,
-                                command_queue = CommandQueue} = State) ->
-    gen_stomp:send(CommandQueue, "RESOURCES", []),
+handle_cast({startup, []}, #state{start_time = StartTime, host = Host,
+                                    lease_time = LeaseTime} = State) ->
+    start_resource_request(Host),
     {noreply, State, lease:time_left(StartTime, LeaseTime)};
 
 %% @doc Add resources that were specified in startup.
@@ -175,21 +165,29 @@ handle_cast({startup, Resources},
 handle_cast(stop, State) ->
     {stop, normal, State}.
 
+handle_info({'EXIT', _Pid, _Reason}, _State) ->
+    ok;
+
 %% @doc On timeout go out and query for the resources.
 handle_info(timeout, #state{lease_time = LeaseTime, rd = Rd,
-                            command_queue = CommandQueue} = State) ->
+                            host = Host} = State) ->
     % On timeout we go and query for the resources.
     Now = lease:seconds_now(),
     NewTimeout = lease:time_left(Now, LeaseTime),
     rd_resource_db:delete_all(Rd),
-    gen_stomp:send(CommandQueue, "RESOURCES", []),
+    start_resource_request(Host),
     {noreply, State#state{start_time = Now}, NewTimeout}.
 
+%% @private
+%%
+%% Upon termination we need to clean up the Pid/Host mapping
+%% for our server.
 terminate(_Reason, _State) ->
     % Remove mapping for process
     rd_store:delete_by_pid(self()),
     ok.
 
+%% @private
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
@@ -197,27 +195,21 @@ code_change(_OldVsn, State, _Extra) ->
 %% Local functions
 %% ===================================================================
 
-%% @doc handle messages on the message queues
-handle_message(Rd, [{type, "MESSAGE"},
-                    {header, _Header}, {body, Body}]) ->
-    %% Resources comes in as a Erlang term turned into a string,
-    %% turn back into a list of records and add them to database.
-    RList = handyterm:string_to_term(Body),
-    lists:foreach(
-        fun (Resource) ->
-            rd_resource_db:insert(Rd, Resource)
-        end, RList);
-
-%% @doc Handle non-message types
-handle_message(_Rd, _Message) ->
-    ok.
-
-%% @doc Add a list of resources to our database of resources
+%% Add a list of resources to our database of resources
 add_resources(_Rd, []) ->
     ok;
 add_resources(Rd, [R|T]) ->
     rd_resource_db:insert(Rd, R),
     add_resources(Rd, T).
+
+%% Spawn resource retrieval method so we don't block.
+start_resource_request(Host) ->
+    spawn(?MODULE, get_resources, [Host]).
+
+%% Spawned method to retrieve resources.
+get_resources(Host) ->
+    Resources = rd_host_request:request_resources(Host),
+    resource_discovery:insert(Host, Resources).
 
 
 
