@@ -89,9 +89,12 @@ handle_request(Socket, {resources, _Host}) ->
     Resources = gen_host_server:fetch(),
     ResourcesAsString = handyterm:term_to_string(Resources),
     gen_tcp:send(Socket, ResourcesAsString);
-%% Unknown command handler.
+
+%% Receive resources from host
 handle_request(_Socket, {myresources, _Host, _Resources}) ->
     ok;
+
+%% Unknown command handler.
 handle_request(_Socket, _Request) ->
     ok.
 
