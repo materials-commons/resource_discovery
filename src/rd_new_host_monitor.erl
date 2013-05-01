@@ -105,5 +105,5 @@ handle_event(#hostevent{host = Host, event = up}, ThisHost) ->
 handle_event(#hostevent{host = Host, event = down}, ThisHost) ->
     case Host =:= ThisHost of
         true -> ok;
-        false -> resource_discovery:delete(Host)
+        false -> resource_discovery:delete_host(Host)
     end.
