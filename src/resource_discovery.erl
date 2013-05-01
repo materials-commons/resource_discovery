@@ -19,7 +19,8 @@
 %%% ===================================================================
 
 -module(resource_discovery).
--export([insert/2, lookup/1, delete/1, create/1, all/0]).
+-export([insert/2, lookup/1, delete_resources_for/2,
+            update_resources_for/2, delete_host/1, create/1, all/0]).
 
 -include("resource.hrl").
 
@@ -64,8 +65,8 @@ create(Host) ->
     end.
 
 %% @doc deletes a host and all resources. If host doesn't exist just ignores it.
--spec delete(string()) -> ok.
-delete(Host) ->
+-spec delete_host(string()) -> ok.
+delete_host(Host) ->
     case rd_store:lookup(Host) of
         {ok, Pid} -> rd_resource_server:stop(Pid);
         {error, _Reason} -> ok
@@ -79,3 +80,23 @@ all() ->
             {ok, HostResources} = rd_resource_server:fetch(Pid),
             {Host, HostResources}
         end, rd_store:all()).
+
+%% @doc Delete a list of resources from the specified host.
+-spec delete_resources_for(string(), [resource()] | []) -> ok.
+delete_resources_for(_Host, []) ->
+    ok;
+delete_resources_for(Host, Resources) ->
+    case rd_store:lookup(Host) of
+        {ok, Pid} -> rd_resource_server:delete(Pid, Resources);
+        {error, _Reason} -> ok
+    end.
+
+%% @doc Update a list of resources from the specified host.
+-spec update_resources_for(string(), [resource()] | []) -> ok.
+update_resources_for(_Host, []) ->
+    ok;
+update_resources_for(Host, Resources) ->
+    case rd_store:lookup(Host) of
+        {ok, Pid} -> rd_resource_server:update(Pid, Resources);
+        {error, _Reason} -> ok
+    end.
