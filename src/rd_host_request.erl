@@ -52,8 +52,8 @@ open_connection_to_handler(Host) ->
     Sock.
 
 send(Socket, Term) ->
-    ok = gen_tcp:send(Socket, handyterm:term_to_string(Term)).
+    ok = gen_tcp:send(Socket, term_to_binary(Term)).
 
 recv(Socket) ->
     {ok, Response} = gen_tcp:recv(Socket, 0),
-    handyterm:string_to_term(Response).
+    binary_to_term(Response).
