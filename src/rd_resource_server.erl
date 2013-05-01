@@ -39,7 +39,7 @@
 
 %% API
 -export([start_link/2, start_link/3, start/1, start/2, fetch/1,
-            update/1, add/2, stop/1]).
+            delete/2, resync/1, update/2, add/2, stop/1]).
 
 
 %% gen_server callbacks
@@ -94,14 +94,24 @@ stop(Pid) ->
     gen_server:cast(Pid, stop).
 
 %% @doc Force server to resync its resource view.
--spec update(pid()) -> ok.
-update(Pid) ->
-    gen_server:cast(Pid, update).
+-spec resync(pid()) -> ok.
+resync(Pid) ->
+    gen_server:cast(Pid, resync).
 
 %% @doc Add resources to server
 -spec add(pid(), [resource()]) -> ok.
 add(Pid, Resources) ->
     gen_server:cast(Pid, {add, Resources}).
+
+%% @doc Update resources
+-spec update(pid(), [resource()]) -> ok.
+update(Pid, Resources) ->
+    gen_server:cast(Pid, {update, Resources}).
+
+%% @doc Delete resources
+-spec delete(pid(), [resource()]) -> ok.
+delete(Pid, Resources) ->
+    gen_server:cast(Pid, {delete, Resources}).
 
 
 %% ===================================================================
@@ -132,7 +142,7 @@ handle_call(fetch, _From,
     {reply, {ok, Resources}, State, TimeLeft}.
 
 %% @doc Update view of resources for this host.
-handle_cast(update,
+handle_cast(resync,
         #state{lease_time = LeaseTime, start_time = StartTime,
                 host = Host} = State) ->
     start_resource_request(Host),
@@ -143,7 +153,21 @@ handle_cast(update,
 handle_cast({add, Resources},
         #state{lease_time = LeaseTime, start_time = StartTime,
                 rd = Rd} = State) ->
-    add_resources(Rd, Resources),
+    rd_resource_db:add_resources(Rd, Resources),
+    TimeLeft = lease:time_left(StartTime, LeaseTime),
+    {noreply, State, TimeLeft};
+
+handle_cast({delete, Resources},
+    #state{lease_time = LeaseTime, start_time = StartTime,
+            rd = Rd} = State) ->
+    rd_resource_db:delete_resources(Rd, Resources),
+    TimeLeft = lease:time_left(StartTime, LeaseTime),
+    {noreply, State, TimeLeft};
+
+handle_cast({update, Resources},
+    #state{lease_time = LeaseTime, start_time = StartTime,
+            rd = Rd} = State) ->
+    rd_resource_db:update_resources(Rd, Resources),
     TimeLeft = lease:time_left(StartTime, LeaseTime),
     {noreply, State, TimeLeft};
 
