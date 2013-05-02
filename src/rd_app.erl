@@ -53,7 +53,6 @@ start(_StartType, _StartArgs) ->
 %% @doc Prepare to stop - Broadcast we are going down!
 prep_stop(_State) ->
     try
-        io:format("rd_app:prep_stop called~n"),
         rd_host_server:send_down()
     catch
         Type:Reason ->
@@ -63,7 +62,6 @@ prep_stop(_State) ->
 
 %% @doc Application callback called when stopping application.
 stop(_State) ->
-    io:format("rd_app:stop called~n"),
     ok.
 
 %% ===================================================================

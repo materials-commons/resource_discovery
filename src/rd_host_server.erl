@@ -143,7 +143,6 @@ handle_cast(down, #state{ss_queue = SSQueue, host = Host} = State) ->
 
 %% TimeToWait Stop the server.
 handle_cast(stop, State) ->
-    io:format("rd_host_server:stop~n"),
     {stop, normal, State}.
 
 handle_info(timeout, #state{rd = Rd, host = MyHost} = State) ->
@@ -154,12 +153,11 @@ handle_info(timeout, #state{rd = Rd, host = MyHost} = State) ->
 %% @doc On timeout go out and query for the resources.
 handle_info(Message, State) ->
     %% Error log bad message
-    io:format("Got unknown message ~p~n", [Message]),
+    io:format("rd_host_server -unknown message: ~p~n", [Message]),
     {noreply, State}.
 
 terminate(_Reason, #state{ss_queue = SSQueue, host = Host}) ->
     % Remove mapping for process and tell everyone we are going down!
-    io:format("rd_host_server:terminate~n"),
     DownEvent = handyterm:term_to_string(#hostevent{host = Host, event = down}),
     gen_stomp:send(SSQueue, DownEvent, []),
     rd_store:delete_by_pid(self()),

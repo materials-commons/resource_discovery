@@ -87,6 +87,7 @@ code_change(_OldVsn, State, _Extra) ->
 %% Handles messages from the startup/shutdown queue.
 handle_message([{type, "MESSAGE"}, {header, _Header}, {body, Body}], ThisHost) ->
     handle_event(handyterm:string_to_term(Body), ThisHost);
+
 %% Ignore messages that are not type {type, "MESSAGE"}
 handle_message(_Message, _ThisHost) ->
     ok.
@@ -103,7 +104,6 @@ handle_event(#hostevent{host = Host, event = up}, ThisHost) ->
 
 %% Handle host down
 handle_event(#hostevent{host = Host, event = down}, ThisHost) ->
-    io:format("hostevent down for host ~p~n", [Host]),
     case Host =:= ThisHost of
         true -> ok;
         false -> resource_discovery:delete_host(Host)
