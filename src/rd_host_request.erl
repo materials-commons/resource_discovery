@@ -47,17 +47,13 @@ send_message_and_close(Host, Message) ->
     gen_tcp:close(Socket).
 
 open_connection_to_handler(Host) ->
-    io:format("Open connection to host: ~p~n", [Host]),
     {ok, Port} = application:get_env(resource_discovery, rd_request_handler_port),
     {ok, Sock} = gen_tcp:connect(Host, Port,[binary, {active, false}]),
     Sock.
 
 send(Socket, Term) ->
-    io:format("Sending Term: ~p~n", [Term]),
-    io:format("  Term as binary: ~p~n", [term_to_binary(Term)]),
     ok = gen_tcp:send(Socket, term_to_binary(Term)).
 
 recv(Socket) ->
     {ok, Response} = gen_tcp:recv(Socket, 0),
-    io:format("recv Response = ~p~n", [Response]),
     binary_to_term(Response).

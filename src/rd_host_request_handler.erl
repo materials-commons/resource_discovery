@@ -60,11 +60,8 @@ handle_cast(stop, State) ->
 %% @private
 %% Handles commands sent over the socket.
 handle_info({tcp, Socket, RawData}, State) ->
-    io:format("I am here about to turn into binary for ~p~n", [RawData]),
     RawDataBin = list_to_binary(RawData),
-    io:format("   RawDataBin ~p~n", [RawDataBin]),
     Request = binary_to_term(RawDataBin),
-    io:format("   After translating term = ~p~n", [Request]),
     handle_request(Socket, Request),
     {stop, normal, State};
 handle_info({tcp_closed, _Socket}, State) ->

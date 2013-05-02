@@ -165,7 +165,6 @@ ping_host(Host, Pid, Port) ->
         _What:_Reason ->
             %% Socket communication error. Host must be down.
             %% Remove host by having its resource tracker exit.
-            %io:format("Ping failed ~p:~p, calling stop on ~p~n", [What,Reason,Pid]),
             rd_resource_server:stop(Pid)
     end.
 
