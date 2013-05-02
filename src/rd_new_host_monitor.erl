@@ -97,7 +97,7 @@ handle_event(#hostevent{host = Host, event = up}, ThisHost) ->
         true -> ok;
         false ->
             resource_discovery:create(Host),
-            Resources = resource_discovery:lookup(ThisHost),
+            {ok, Resources} = resource_discovery:lookup(ThisHost),
             rd_host_request:send_resources(Host, ThisHost, Resources)
     end;
 

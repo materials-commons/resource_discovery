@@ -52,6 +52,8 @@ open_connection_to_handler(Host) ->
     Sock.
 
 send(Socket, Term) ->
+    io:format("Sending Term: ~p~n", [Term]),
+    io:format("  Term as binary: ~p~n", [term_to_binary(Term)]),
     ok = gen_tcp:send(Socket, term_to_binary(Term)).
 
 recv(Socket) ->
