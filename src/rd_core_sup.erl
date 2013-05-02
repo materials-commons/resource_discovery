@@ -60,8 +60,7 @@ init(Arguments) ->
     LSockRH = get_value(Arguments, lsock_rh),
 
     Supervisors = [
-        ?CHILD(rd_resource_sup, [StompHost, StompPort, StompUser,
-                                    StompPassword, RdLease]),
+        ?CHILD(rd_resource_sup, [RdLease]),
         ?CHILD(rd_host_sup, [StompHost, StompPort, StompUser,
                                 StompPassword, HostIpAddress, []]),
         ?CHILD(rd_monitor_sup, [PingHeartBeat, PingPongPort, StompHost,
