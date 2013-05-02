@@ -103,6 +103,7 @@ handle_event(#hostevent{host = Host, event = up}, ThisHost) ->
 
 %% Handle host down
 handle_event(#hostevent{host = Host, event = down}, ThisHost) ->
+    io:format("hostevent down for host ~p~n", [Host]),
     case Host =:= ThisHost of
         true -> ok;
         false -> resource_discovery:delete_host(Host)

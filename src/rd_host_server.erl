@@ -26,7 +26,7 @@
 
 %% API
 -export([start_link/6, fetch/0, delete_resources/1, add_resource/1,
-            update_resources/1, stop/0, stop/1]).
+            update_resources/1, stop/0, stop/1, send_down/0]).
 
 %% gen_stomp callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
@@ -84,6 +84,11 @@ update_resources(Resources) ->
 add_resource(#resource{} = Resource) ->
     gen_stomp:cast(?SERVER, {add_resource, Resource}).
 
+%% @doc Send the down event. This is used in preparation for stopping application.
+-spec send_down() -> ok.
+send_down() ->
+    gen_stomp:cast(?SERVER, down).
+
 %% ===================================================================
 %% gen_stomp callbacks
 %% ===================================================================
@@ -130,8 +135,15 @@ handle_cast({delete_resources, Resources}, #state{rd = Rd, host = MyHost} = Stat
     broadcast_to_remotes(MyHost, Resources, delete_resources),
     {noreply, State};
 
+handle_cast(down, #state{ss_queue = SSQueue, host = Host} = State) ->
+    DownEvent = handyterm:term_to_string(#hostevent{host = Host, event = down}),
+    gen_stomp:send(SSQueue, DownEvent, []),
+    {noreply, State};
+
+
 %% TimeToWait Stop the server.
 handle_cast(stop, State) ->
+    io:format("rd_host_server:stop~n"),
     {stop, normal, State}.
 
 handle_info(timeout, #state{rd = Rd, host = MyHost} = State) ->
@@ -140,12 +152,14 @@ handle_info(timeout, #state{rd = Rd, host = MyHost} = State) ->
     {noreply, State};
 
 %% @doc On timeout go out and query for the resources.
-handle_info(_Message, State) ->
+handle_info(Message, State) ->
     %% Error log bad message
+    io:format("Got unknown message ~p~n", [Message]),
     {noreply, State}.
 
 terminate(_Reason, #state{ss_queue = SSQueue, host = Host}) ->
     % Remove mapping for process and tell everyone we are going down!
+    io:format("rd_host_server:terminate~n"),
     DownEvent = handyterm:term_to_string(#hostevent{host = Host, event = down}),
     gen_stomp:send(SSQueue, DownEvent, []),
     rd_store:delete_by_pid(self()),

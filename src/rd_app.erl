@@ -22,7 +22,7 @@
 -behaviour(application).
 
 %% Application callbacks
--export([start/2, stop/1]).
+-export([start/2, stop/1, prep_stop/1]).
 
 %% API
 -export([start/0]).
@@ -50,8 +50,20 @@ start(_StartType, _StartArgs) ->
             {error, Other}
     end.
 
+%% @doc Prepare to stop - Broadcast we are going down!
+prep_stop(_State) ->
+    try
+        io:format("rd_app:prep_stop called~n"),
+        rd_host_server:send_down()
+    catch
+        Type:Reason ->
+            io:format("Stopping application resource_discovery: ~p~p.~n", [Type, Reason])
+    end,
+    stopping.
+
 %% @doc Application callback called when stopping application.
 stop(_State) ->
+    io:format("rd_app:stop called~n"),
     ok.
 
 %% ===================================================================
