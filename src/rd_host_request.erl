@@ -59,4 +59,6 @@ send(Socket, Term) ->
 
 recv(Socket) ->
     {ok, Response} = gen_tcp:recv(Socket, 0),
-    binary_to_term(Response).
+    io:format("recv Response = ~p~n", [Response]),
+    ResponseAsBinary = list_to_binary(Response),
+    binary_to_term(ResponseAsBinary).

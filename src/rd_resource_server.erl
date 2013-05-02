@@ -182,7 +182,7 @@ handle_cast({startup, []}, #state{start_time = StartTime, host = Host,
 handle_cast({startup, Resources},
         #state{start_time = StartTime,
                 lease_time = LeaseTime, rd = Rd} = State) ->
-    add_resources(Rd, Resources),
+    rd_resource_db:add_resources(Rd, Resources),
     {noreply, State, lease:time_left(StartTime, LeaseTime)};
 
 %% @doc Stop the server.
@@ -218,13 +218,6 @@ code_change(_OldVsn, State, _Extra) ->
 %% ===================================================================
 %% Local functions
 %% ===================================================================
-
-%% Add a list of resources to our database of resources
-add_resources(_Rd, []) ->
-    ok;
-add_resources(Rd, [R|T]) ->
-    rd_resource_db:insert(Rd, R),
-    add_resources(Rd, T).
 
 %% Spawn resource retrieval method so we don't block.
 start_resource_request(Host) ->
