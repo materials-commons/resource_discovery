@@ -55,7 +55,7 @@ start_link(StompHost, Port, Username, Password, ResourceHost, Resources) ->
         Username, Password, [], [ResourceHost, [ResourceRd | Resources]]).
 
 %% @doc Fetch resources for this server.
--spec fetch() -> [resource()].
+-spec fetch() -> {ok, [resource()] | []}.
 fetch() ->
     gen_stomp:call(?SERVER, fetch).
 

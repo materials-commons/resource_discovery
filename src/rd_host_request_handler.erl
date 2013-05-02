@@ -90,7 +90,7 @@ code_change(_OldVsn, State, _Extra) ->
 
 %% Send back all the resources for our local host.
 handle_request(Socket, resources) ->
-    Resources = rd_host_server:fetch(),
+    {ok, Resources} = rd_host_server:fetch(),
     gen_tcp:send(Socket, term_to_binary(Resources));
 
 %% Receive resources from host

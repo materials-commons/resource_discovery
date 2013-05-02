@@ -84,7 +84,7 @@ start(Host, Resources) ->
     rd_resource_sup:start_child(Host, Resources).
 
 %% @doc Return known resources
--spec fetch(pid()) -> [resource()] | [].
+-spec fetch(pid()) -> {ok, [resource()] | []}.
 fetch(Pid) ->
     gen_server:call(Pid, fetch).
 
