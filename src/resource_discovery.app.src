@@ -39,6 +39,7 @@
         [
             kernel,
             stdlib,
+            %lager,
             handyman,
             ossp_uuid,
             stomp_client

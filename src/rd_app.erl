@@ -33,6 +33,7 @@
 
 %% @doc Short cut to start application and all dependencies explicitly.
 start() ->
+    %lager:start(),
     application:start(handyman),
     application:start(ossp_uuid),
     application:start(stomp_client),
@@ -62,6 +63,8 @@ prep_stop(_State) ->
 
 %% @doc Application callback called when stopping application.
 stop(_State) ->
+    io:format("rd_app: stop"),
+    %lager:info("In lager: stopping"),
     ok.
 
 %% ===================================================================
