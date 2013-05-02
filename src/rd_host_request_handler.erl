@@ -89,7 +89,7 @@ code_change(_OldVsn, State, _Extra) ->
 %% ===================================================================
 
 %% Send back all the resources for our local host.
-handle_request(Socket, {resources, _Host}) ->
+handle_request(Socket, resources) ->
     Resources = gen_host_server:fetch(),
     gen_tcp:send(Socket, term_to_binary(Resources));
 
@@ -106,7 +106,8 @@ handle_request(_Socket, {update_resources, Host, Resources}) ->
     resource_discovery:update_resources_for(Host, Resources);
 
 %% Unknown command handler.
-handle_request(_Socket, _Request) ->
+handle_request(_Socket, Request) ->
+    io:format("Unknown Request: ~p~n", [Request]),
     ok.
 
 
