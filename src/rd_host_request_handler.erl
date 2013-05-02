@@ -106,6 +106,3 @@ handle_request(_Socket, {update_resources, Host, Resources}) ->
 handle_request(_Socket, Request) ->
     io:format("rd_host_request_handler - Unknown Request: ~p~n", [Request]),
     ok.
-
-
-
