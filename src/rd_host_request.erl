@@ -47,8 +47,9 @@ send_message_and_close(Host, Message) ->
     gen_tcp:close(Socket).
 
 open_connection_to_handler(Host) ->
+    io:format("Open connection to host: ~p~n", [Host]),
     {ok, Port} = application:get_env(resource_discovery, rd_request_handler_port),
-    {ok, Sock} = gen_tcp:connect(Host, Port,[{active, false}]),
+    {ok, Sock} = gen_tcp:connect(Host, Port,[binary, {active, false}]),
     Sock.
 
 send(Socket, Term) ->
