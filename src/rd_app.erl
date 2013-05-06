@@ -63,7 +63,7 @@ prep_stop(_State) ->
 
 %% @doc Application callback called when stopping application.
 stop(_State) ->
-    io:format("rd_app: stop"),
+    %io:format("rd_app: stop"),
     %lager:info("In lager: stopping"),
     ok.
 
