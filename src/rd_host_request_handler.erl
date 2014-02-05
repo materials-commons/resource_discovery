@@ -60,7 +60,8 @@ handle_cast(stop, State) ->
 %% @private
 %% Handles commands sent over the socket.
 handle_info({tcp, Socket, RawData}, State) ->
-    Request = binary_to_term(RawData),
+    RawDataBin = list_to_binary(RawData),
+    Request = binary_to_term(RawDataBin),
     handle_request(Socket, Request),
     {stop, normal, State};
 handle_info({tcp_closed, _Socket}, State) ->
@@ -85,8 +86,8 @@ code_change(_OldVsn, State, _Extra) ->
 %% ===================================================================
 
 %% Send back all the resources for our local host.
-handle_request(Socket, {resources, _Host}) ->
-    Resources = gen_host_server:fetch(),
+handle_request(Socket, resources) ->
+    {ok, Resources} = rd_host_server:fetch(),
     gen_tcp:send(Socket, term_to_binary(Resources));
 
 %% Receive resources from host
@@ -102,8 +103,6 @@ handle_request(_Socket, {update_resources, Host, Resources}) ->
     resource_discovery:update_resources_for(Host, Resources);
 
 %% Unknown command handler.
-handle_request(_Socket, _Request) ->
+handle_request(_Socket, Request) ->
+    io:format("rd_host_request_handler - Unknown Request: ~p~n", [Request]),
     ok.
-
-
-

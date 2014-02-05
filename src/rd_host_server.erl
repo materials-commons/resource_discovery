@@ -26,7 +26,7 @@
 
 %% API
 -export([start_link/6, fetch/0, delete_resources/1, add_resource/1,
-            update_resources/1, stop/0, stop/1]).
+            update_resources/1, stop/0, stop/1, send_down/0]).
 
 %% gen_stomp callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
@@ -55,7 +55,7 @@ start_link(StompHost, Port, Username, Password, ResourceHost, Resources) ->
         Username, Password, [], [ResourceHost, [ResourceRd | Resources]]).
 
 %% @doc Fetch resources for this server.
--spec fetch() -> [resource()].
+-spec fetch() -> {ok, [resource()] | []}.
 fetch() ->
     gen_stomp:call(?SERVER, fetch).
 
@@ -83,6 +83,11 @@ update_resources(Resources) ->
 -spec add_resource(resource()) -> ok.
 add_resource(#resource{} = Resource) ->
     gen_stomp:cast(?SERVER, {add_resource, Resource}).
+
+%% @doc Send the down event. This is used in preparation for stopping application.
+-spec send_down() -> ok.
+send_down() ->
+    gen_stomp:cast(?SERVER, down).
 
 %% ===================================================================
 %% gen_stomp callbacks
@@ -130,6 +135,12 @@ handle_cast({delete_resources, Resources}, #state{rd = Rd, host = MyHost} = Stat
     broadcast_to_remotes(MyHost, Resources, delete_resources),
     {noreply, State};
 
+handle_cast(down, #state{ss_queue = SSQueue, host = Host} = State) ->
+    DownEvent = handyterm:term_to_string(#hostevent{host = Host, event = down}),
+    gen_stomp:send(SSQueue, DownEvent, []),
+    {noreply, State};
+
+
 %% TimeToWait Stop the server.
 handle_cast(stop, State) ->
     {stop, normal, State}.
@@ -140,8 +151,9 @@ handle_info(timeout, #state{rd = Rd, host = MyHost} = State) ->
     {noreply, State};
 
 %% @doc On timeout go out and query for the resources.
-handle_info(_Message, State) ->
+handle_info(Message, State) ->
     %% Error log bad message
+    io:format("rd_host_server -unknown message: ~p~n", [Message]),
     {noreply, State}.
 
 terminate(_Reason, #state{ss_queue = SSQueue, host = Host}) ->

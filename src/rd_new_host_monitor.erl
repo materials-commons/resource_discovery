@@ -87,6 +87,7 @@ code_change(_OldVsn, State, _Extra) ->
 %% Handles messages from the startup/shutdown queue.
 handle_message([{type, "MESSAGE"}, {header, _Header}, {body, Body}], ThisHost) ->
     handle_event(handyterm:string_to_term(Body), ThisHost);
+
 %% Ignore messages that are not type {type, "MESSAGE"}
 handle_message(_Message, _ThisHost) ->
     ok.
@@ -97,7 +98,7 @@ handle_event(#hostevent{host = Host, event = up}, ThisHost) ->
         true -> ok;
         false ->
             resource_discovery:create(Host),
-            Resources = resource_discovery:lookup(ThisHost),
+            {ok, Resources} = resource_discovery:lookup(ThisHost),
             rd_host_request:send_resources(Host, ThisHost, Resources)
     end;
 

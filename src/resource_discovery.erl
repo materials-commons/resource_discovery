@@ -32,7 +32,7 @@
 insert(Host, Resources) when is_list(Resources) ->
     case rd_store:lookup(Host) of
         {ok, Pid} ->
-            rd_resource_server:add_resources(Pid, Resources);
+            rd_resource_server:add(Pid, Resources);
         {error, _} ->
             {ok, Pid} = rd_resource_server:start(Host, Resources),
             rd_store:insert(Host, Pid)
