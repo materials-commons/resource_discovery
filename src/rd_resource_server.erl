@@ -234,8 +234,3 @@ start_resource_request(Host) ->
 get_resources(Host) ->
     Resources = rd_host_request:request_resources(Host),
     resource_discovery:insert(Host, Resources).
-
-
-
-
-
